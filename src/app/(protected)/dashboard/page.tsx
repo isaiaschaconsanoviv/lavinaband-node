@@ -63,7 +63,7 @@ export default async function DashboardPage() {
             )}
           </div>
           {nextSetlistWithRehearsal && (
-            <Link href={`/setlists/${nextSetlistWithRehearsal._id}`} className="mt-4 inline-block text-sm text-purple-400 hover:text-purple-300">
+            <Link href={`/setlists/${nextSetlistWithRehearsal._id.toString()}`} className="mt-4 inline-block text-sm text-purple-400 hover:text-purple-300">
               Ver detalles &rarr;
             </Link>
           )}
@@ -85,7 +85,7 @@ export default async function DashboardPage() {
             )}
           </div>
           {nextService && (
-            <Link href={`/setlists/${nextService._id}`} className="mt-4 inline-block text-sm text-blue-400 hover:text-blue-300">
+            <Link href={`/setlists/${nextService._id.toString()}`} className="mt-4 inline-block text-sm text-blue-400 hover:text-blue-300">
               Ver setlist &rarr;
             </Link>
           )}

@@ -6,7 +6,7 @@ import DatePicker from '@/components/DatePicker';
 import ConfirmModal from '@/components/ConfirmModal';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { DndContext, closestCenter } from '@dnd-kit/core';
+import { DndContext, closestCenter, useSensor, useSensors, PointerSensor, TouchSensor } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -99,6 +99,7 @@ export default function SetlistDetailPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
+    if (!params?.id) return;
     fetch('/api/users').then(res => res.json()).then(data => { if(data.success) setUsers(data.data); });
     fetch(`/api/setlists/${params.id}`, { cache: 'no-store' }).then(r => r.json()).then(d => {
       if (d.success) setSetlist(d.data);
@@ -123,6 +124,11 @@ export default function SetlistDetailPage() {
       window.location.href = '/setlists';
     };
     const deleteSetlist = () => setShowDeleteModal(true);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
+  );
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
@@ -186,8 +192,8 @@ export default function SetlistDetailPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-      <header className="flex justify-between items-center bg-zinc-900/40 p-6 rounded-xl border border-zinc-700/50">
-        <div className="w-full sm:w-auto flex-1 mr-4">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 sm:gap-0 bg-zinc-900/40 p-4 sm:p-6 rounded-xl border border-zinc-700/50">
+        <div className="w-full sm:w-auto flex-1 sm:mr-4">
           <input 
             type="text" 
             className="text-3xl font-bold bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-blue-500 focus:outline-none w-full mb-3"
@@ -220,11 +226,11 @@ export default function SetlistDetailPage() {
             </div>
           </div>
         </div>
-        <div className="flex gap-4">
-          <button onClick={deleteSetlist} className="px-4 py-2 bg-red-900/40 hover:bg-red-600/80 text-red-400 hover:text-white border border-red-900/50 hover:border-red-600 rounded-lg font-medium transition-colors">
+        <div className="flex gap-3 w-full sm:w-auto">
+          <button onClick={deleteSetlist} className="flex-1 sm:flex-none px-4 py-2 bg-red-900/40 hover:bg-red-600/80 text-red-400 hover:text-white border border-red-900/50 hover:border-red-600 rounded-lg font-medium transition-colors">
             Eliminar
           </button>
-          <button onClick={() => setShowSelector(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-medium">
+          <button onClick={() => setShowSelector(true)} className="flex-[2] sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-medium">
             + Añadir Canción
           </button>
         </div>
@@ -253,7 +259,7 @@ export default function SetlistDetailPage() {
               No hay canciones en este setlist.
             </div>
           ) : (
-            <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={setlist.songs.map((s:any) => s.song._id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
                   {setlist.songs.map((item: any) => (

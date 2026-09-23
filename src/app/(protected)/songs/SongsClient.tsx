@@ -117,6 +117,7 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead className="bg-zinc-900/80 text-zinc-400 text-xs uppercase tracking-wider border-b border-zinc-700/50">
               <tr>
+                <th className="table-cell md:hidden p-4 w-10"></th>
                 <th className="p-4 font-semibold cursor-pointer group hover:text-white transition-colors select-none" onClick={() => handleSort('title')}>
                   <div className="flex items-center">Título <SortIcon field="title" /></div>
                 </th>
@@ -130,8 +131,6 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
                 <th className="hidden md:table-cell p-4 font-semibold text-center select-none text-zinc-400">
                   <div className="flex items-center justify-center">YouTube</div>
                 </th>
-                
-                <th className="table-cell md:hidden p-4 w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
@@ -151,6 +150,18 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
                     onClick={() => setSelectedSong(song)}
                     className="hover:bg-zinc-800/50 transition-colors cursor-pointer group"
                   >
+                    <td className="table-cell md:hidden p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedSongId(expandedSongId === song._id ? null : song._id);
+                        }}
+                        className="p-2 -m-2 text-zinc-400 hover:text-white transition-colors rounded-full hover:bg-zinc-800"
+                      >
+                        <svg className={`w-5 h-5 transition-transform ${expandedSongId === song._id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                    </td>
+                    
                     <td className="p-4 font-medium text-zinc-200 group-hover:text-blue-400 transition-colors flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20">
                         <svg className="w-4 h-4 text-zinc-500 group-hover:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
@@ -183,24 +194,12 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
                         <span className="text-zinc-700">-</span>
                       )}
                     </td>
-                    
-                    <td className="table-cell md:hidden p-4 text-center" onClick={(e) => e.stopPropagation()}>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpandedSongId(expandedSongId === song._id ? null : song._id);
-                        }}
-                        className="p-2 -m-2 text-zinc-400 hover:text-white transition-colors rounded-full hover:bg-zinc-800"
-                      >
-                        <svg className={`w-5 h-5 transition-transform ${expandedSongId === song._id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                      </button>
-                    </td>
                   </tr>
                   
                   {expandedSongId === song._id && (
                     <tr className="md:hidden bg-zinc-800/20">
                       <td colSpan={5} className="p-4 border-t border-zinc-800/50">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col gap-3">
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-zinc-500 uppercase font-semibold">Tono:</span>
                             {song.key ? (

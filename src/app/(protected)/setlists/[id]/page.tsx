@@ -102,7 +102,14 @@ export default function SetlistDetailPage() {
     if (!params?.id) return;
     fetch('/api/users').then(res => res.json()).then(data => { if(data.success) setUsers(data.data); });
     fetch(`/api/setlists/${params.id}`, { cache: 'no-store' }).then(r => r.json()).then(d => {
-      if (d.success) setSetlist(d.data);
+      if (d.success) {
+        setSetlist(d.data);
+      } else {
+        setSetlist({ error: d.error || 'API Error' });
+      }
+      setLoading(false);
+    }).catch(e => {
+      setSetlist({ error: e.message });
       setLoading(false);
     });
     fetch('/api/songs?status=ACTIVE,APPROVED', { cache: 'no-store' }).then(r => r.json()).then(d => {
@@ -186,7 +193,7 @@ export default function SetlistDetailPage() {
   };
 
   if (loading) return <div className="p-8 text-center text-zinc-400">Cargando...</div>;
-  if (!setlist) return <div className="p-8 text-center text-red-400">No se encontró el setlist.</div>;
+  if (!setlist || setlist.error) return <div className="p-8 text-center text-red-400">No se encontró el setlist. Detalle: {setlist?.error || 'Desconocido'} (ID: {params.id})</div>;
 
   const filteredSongs = allSongs.filter(s => s.title.toLowerCase().includes(searchTerm.toLowerCase()));
 

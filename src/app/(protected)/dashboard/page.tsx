@@ -26,9 +26,7 @@ export default async function DashboardPage() {
     rehearsalDate: { $gte: today } 
   }).sort({ rehearsalDate: 1 }).lean();
 
-  const nextService = await Setlist.findOne({ 
-    date: { $gte: today } 
-  }).sort({ date: 1 }).lean();
+
 
   const readingSetting = await Setting.findOne({ key: 'weeklyReading' }).lean();
   const weeklyReading = readingSetting?.value || '';
@@ -77,27 +75,7 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {/* Próximo Servicio */}
-        <div className="bg-zinc-900/60 backdrop-blur border border-zinc-700/50 rounded-xl p-6 shadow-lg flex flex-col justify-between">
-          <div>
-            <h3 className="text-lg font-semibold mb-4 text-blue-400">Próximo Servicio</h3>
-            {nextService && nextService.date ? (
-              <div>
-                <p className="text-2xl font-bold text-white mb-1">
-                  {format(new Date(nextService.date), "EEEE d 'de' MMMM", { locale: es })}
-                </p>
-                <p className="text-zinc-400 text-sm">{nextService.title}</p>
-              </div>
-            ) : (
-              <p className="text-zinc-300 text-sm">El setlist no ha sido elegido.</p>
-            )}
-          </div>
-          {nextService && (
-            <Link href={`/setlists/${nextService._id.toString()}`} className="mt-4 inline-block text-sm text-blue-400 hover:text-blue-300">
-              Ver setlist &rarr;
-            </Link>
-          )}
-        </div>
+
 
         {/* Lectura Semanal */}
         <WeeklyReadingCard initialReading={weeklyReading} role={role} />

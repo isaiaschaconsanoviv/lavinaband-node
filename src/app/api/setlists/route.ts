@@ -1,6 +1,8 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Setlist from '@/models/Setlist';
+import '@/models/Song';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -10,7 +12,7 @@ export async function GET(req: NextRequest) {
     const setlists = await Setlist.find().sort({ date: 1 }).populate('songs.song');
     return NextResponse.json({ success: true, data: setlists });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message || 'Server Error' }, { status: 500 });
   }
 }
 
@@ -29,6 +31,6 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ success: true, data: newSetlist }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message || 'Server Error' }, { status: 500 });
   }
 }

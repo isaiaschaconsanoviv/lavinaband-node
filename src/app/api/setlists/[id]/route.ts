@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Setlist from '@/models/Setlist';
+import '@/models/Song';
+import '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -12,7 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!setlist) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
     return NextResponse.json({ success: true, data: setlist });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message || 'Server Error' }, { status: 500 });
   }
 }
 
@@ -30,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     
     return NextResponse.json({ success: true, data: setlist });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message || 'Server Error' }, { status: 500 });
   }
 }
 
@@ -47,6 +49,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     
     return NextResponse.json({ success: true, data: {} });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message || 'Server Error' }, { status: 500 });
   }
 }

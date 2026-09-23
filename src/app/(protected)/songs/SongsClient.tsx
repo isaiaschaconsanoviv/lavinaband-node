@@ -1,11 +1,12 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import SuggestSongModal from '@/components/songs/SuggestSongModal';
 import SongDetailsModal from '@/components/songs/SongDetailsModal';
 import ImportMuflButton from '@/components/ImportMuflButton';
 
 export default function SongsClient({ initialSongs, role }: { initialSongs: any[], role: string }) {
   const [songs, setSongs] = useState(initialSongs);
+  const [expandedSongId, setExpandedSongId] = useState<string | null>(null);
   
   useEffect(() => {
     setSongs(initialSongs);
@@ -122,19 +123,21 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
                 <th className="p-4 font-semibold cursor-pointer group hover:text-white transition-colors select-none" onClick={() => handleSort('artist')}>
                   <div className="flex items-center">Artista <SortIcon field="artist" /></div>
                 </th>
-                <th className="p-4 font-semibold cursor-pointer group hover:text-white transition-colors select-none" onClick={() => handleSort('key')}>
+                <th className="hidden md:table-cell p-4 font-semibold cursor-pointer group hover:text-white transition-colors select-none" onClick={() => handleSort('key')}>
                   <div className="flex items-center">Tono <SortIcon field="key" /></div>
                 </th>
                 
-                <th className="p-4 font-semibold text-center select-none text-zinc-400">
+                <th className="hidden md:table-cell p-4 font-semibold text-center select-none text-zinc-400">
                   <div className="flex items-center justify-center">YouTube</div>
                 </th>
+                
+                <th className="table-cell md:hidden p-4 w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
               {paginatedSongs.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="p-12 text-center text-zinc-500">
+                  <td colSpan={5} className="p-12 text-center text-zinc-500">
                     <div className="flex flex-col items-center justify-center gap-3">
                       <svg className="w-12 h-12 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
                       {searchTerm ? 'No se encontraron canciones con esa búsqueda.' : 'Aún no hay canciones en la lista.'}
@@ -143,8 +146,8 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
                 </tr>
               ) : (
                 paginatedSongs.map((song: any) => (
+                  <React.Fragment key={song._id.toString()}>
                   <tr 
-                    key={song._id.toString()} 
                     onClick={() => setSelectedSong(song)}
                     className="hover:bg-zinc-800/50 transition-colors cursor-pointer group"
                   >
@@ -155,7 +158,7 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
                       {song.title}
                     </td>
                     <td className="p-4 text-zinc-400">{song.artist}</td>
-                    <td className="p-4">
+                    <td className="hidden md:table-cell p-4">
                       {song.key ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-sm">
                           {song.key}
@@ -165,7 +168,7 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
                       )}
                     </td>
                     
-                    <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                    <td className="hidden md:table-cell p-4 text-center" onClick={(e) => e.stopPropagation()}>
                       {song.youtubeLink ? (
                         <a 
                           href={song.youtubeLink} 
@@ -180,7 +183,55 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
                         <span className="text-zinc-700">-</span>
                       )}
                     </td>
+                    
+                    <td className="table-cell md:hidden p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedSongId(expandedSongId === song._id ? null : song._id);
+                        }}
+                        className="p-2 -m-2 text-zinc-400 hover:text-white transition-colors rounded-full hover:bg-zinc-800"
+                      >
+                        <svg className={`w-5 h-5 transition-transform ${expandedSongId === song._id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                    </td>
                   </tr>
+                  
+                  {expandedSongId === song._id && (
+                    <tr className="md:hidden bg-zinc-800/20">
+                      <td colSpan={5} className="p-4 border-t border-zinc-800/50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-zinc-500 uppercase font-semibold">Tono:</span>
+                            {song.key ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                {song.key}
+                              </span>
+                            ) : (
+                              <span className="text-zinc-600">-</span>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-zinc-500 uppercase font-semibold">YouTube:</span>
+                            {song.youtubeLink ? (
+                              <a 
+                                href={song.youtubeLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="inline-flex items-center justify-center text-red-500 hover:text-red-400 transition-colors p-1"
+                              >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" /></svg>
+                              </a>
+                            ) : (
+                              <span className="text-zinc-700">-</span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 ))
               )}
             </tbody>

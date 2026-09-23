@@ -215,8 +215,8 @@ export default function BulletinBoardCard({ initialAnnouncements, role, userName
           <div className="mb-4">
             <label className="block text-sm font-medium text-zinc-400 mb-1">Contenido</label>
             <div className="bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100">
-              {/* @ts-expect-error ReactQuill dynamic import typing issue */}
               <ReactQuill 
+                // @ts-expect-error ReactQuill dynamic import typing issue
                 ref={quillRef}
                 theme="snow" 
                 value={newText} 

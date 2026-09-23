@@ -10,7 +10,7 @@ import { DndContext, closestCenter, useSensor, useSensors, PointerSensor, TouchS
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-function SortableItem({ id, song, onRemove, onUpdateSong }: { id: string, song: any, onRemove: (id: string) => void, onUpdateSong: (id: string, updates: any) => void }) {
+function SortableItem({ id, song, isReordering, onRemove, onUpdateSong }: { id: string, song: any, isReordering: boolean, onRemove: (id: string) => void, onUpdateSong: (id: string, updates: any) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition };
   
@@ -43,9 +43,11 @@ function SortableItem({ id, song, onRemove, onUpdateSong }: { id: string, song: 
 
   return (
     <div ref={setNodeRef} style={style} className="flex items-center gap-4 bg-zinc-900/60 p-4 rounded-lg border border-zinc-700/50">
-      <div {...attributes} {...listeners} className="cursor-grab text-zinc-500 hover:text-zinc-300">
-        ☰
-      </div>
+      {isReordering && (
+        <div {...attributes} {...listeners} className="cursor-grab text-zinc-400 hover:text-white p-2 bg-zinc-800 rounded-md active:bg-zinc-700 transition-colors shadow-sm">
+          ☰
+        </div>
+      )}
       <div className="flex-1">
         <h4 className="font-medium flex items-center gap-2">
           {song.title}
@@ -97,6 +99,7 @@ export default function SetlistDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showSelector, setShowSelector] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isReordering, setIsReordering] = useState(false);
 
   useEffect(() => {
     if (!params?.id) return;
@@ -260,7 +263,15 @@ export default function SetlistDetailPage() {
 
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-4">
-          <h2 className="text-xl font-semibold">Canciones</h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Canciones</h2>
+            <button 
+              onClick={() => setIsReordering(!isReordering)}
+              className={`text-sm px-4 py-2 rounded-lg font-medium transition-colors border ${isReordering ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white'}`}
+            >
+              {isReordering ? '✓ Guardar Orden' : '⇅ Reordenar'}
+            </button>
+          </div>
           {setlist.songs.length === 0 ? (
             <div className="p-8 text-center text-zinc-500 bg-zinc-900/30 rounded-xl border border-zinc-700/30">
               No hay canciones en este setlist.
@@ -270,7 +281,7 @@ export default function SetlistDetailPage() {
               <SortableContext items={setlist.songs.map((s:any) => s.song._id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
                   {setlist.songs.map((item: any) => (
-                    <SortableItem key={item.song._id} id={item.song._id} song={item.song} onRemove={removeSong} onUpdateSong={updateSongInSetlist} />
+                    <SortableItem key={item.song._id} id={item.song._id} song={item.song} isReordering={isReordering} onRemove={removeSong} onUpdateSong={updateSongInSetlist} />
                   ))}
                 </div>
               </SortableContext>

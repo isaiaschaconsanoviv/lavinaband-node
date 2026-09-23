@@ -44,7 +44,7 @@ function SortableItem({ id, song, isReordering, onRemove, onUpdateSong }: { id: 
   return (
     <div ref={setNodeRef} style={style} className="flex items-center gap-4 bg-zinc-900/60 p-4 rounded-lg border border-zinc-700/50">
       {isReordering && (
-        <div {...attributes} {...listeners} className="cursor-grab text-zinc-400 hover:text-white p-2 bg-zinc-800 rounded-md active:bg-zinc-700 transition-colors shadow-sm">
+        <div {...attributes} {...listeners} style={{ touchAction: 'none' }} className="cursor-grab text-zinc-400 hover:text-white p-2 bg-zinc-800 rounded-md active:bg-zinc-700 transition-colors shadow-sm select-none">
           ☰
         </div>
       )}
@@ -137,7 +137,7 @@ export default function SetlistDetailPage() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
+    useSensor(TouchSensor, { activationConstraint: { delay: 0, tolerance: 5 } })
   );
 
   const handleDragEnd = (event: any) => {

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef } from 'react';
 import { importHolyricsMufl } from '@/app/actions/import.actions';
+import toast from 'react-hot-toast';
 
 export default function ImportMuflButton() {
   const [loading, setLoading] = useState(false);
@@ -14,9 +15,18 @@ export default function ImportMuflButton() {
     const formData = new FormData();
     formData.append('file', file);
 
-    const result = await importHolyricsMufl(formData);
-    alert(result.message);
-    setLoading(false);
+    try {
+      const result = await importHolyricsMufl(formData);
+      if (result.success) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      toast.error('Error al importar el archivo.');
+    } finally {
+      setLoading(false);
+    }
     
     if (fileInputRef.current) {
       fileInputRef.current.value = '';

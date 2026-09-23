@@ -8,6 +8,9 @@ const SongSchema = new mongoose.Schema({
   link: { type: String },
   sheetLink: { type: String },
   youtubeLink: { type: String },
+  lyrics: { type: String },
+  lyricsHTML: { type: String },
+  formatting: { type: String },
   status: { 
     type: String, 
     enum: ['ACTIVE', 'SUGGESTED', 'APPROVED', 'REJECTED'], 

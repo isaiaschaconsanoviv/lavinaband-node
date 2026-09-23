@@ -46,6 +46,10 @@ export async function importHolyricsMufl(formData: FormData) {
       const artist = item.artist || 'Desconocido';
       const key = item.note || '';
       
+      const lyrics = item.lyrics || item.text || item.songText || item.letra || '';
+      const formatting = item.formatting || '';
+      const lyricsHTML = item.lyricsHTML || '';
+      
       // Upsert into DB (find by title & artist, if exists update, if not insert)
       await Song.updateOne(
         { title, artist },
@@ -54,6 +58,9 @@ export async function importHolyricsMufl(formData: FormData) {
             title,
             artist,
             key,
+            lyrics,
+            formatting,
+            lyricsHTML,
             status: 'ACTIVE',
           }
         },
@@ -63,7 +70,7 @@ export async function importHolyricsMufl(formData: FormData) {
       importedCount++;
     }
 
-    revalidatePath('/repertory');
+    revalidatePath('/songs');
     
     return { 
       success: true, 

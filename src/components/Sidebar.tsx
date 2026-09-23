@@ -10,6 +10,7 @@ export default function Sidebar({ userRole, userName }: { userRole?: string; use
     { name: 'Inicio', path: '/dashboard', icon: '🏠' },
     { name: 'Canciones', path: '/songs', icon: '🎵' },
     { name: 'Set Lists', path: '/setlists', icon: '📋' },
+    { name: 'Perfil', path: '/profile', icon: '👤' },
   ];
 
   if (userRole === 'ADMIN') {

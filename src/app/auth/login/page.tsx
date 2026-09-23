@@ -37,7 +37,8 @@ export default function LoginPage() {
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-50 animate-blob animation-delay-2000"></div>
 
       <div className="z-10 w-full max-w-md p-8 space-y-8 bg-zinc-900/60 backdrop-blur-xl rounded-2xl shadow-2xl border border-zinc-700/50">
-        <div className="text-center">
+        <div className="text-center flex flex-col items-center">
+          <img src="/logo.png" alt="La Viña Band Logo" className="w-24 h-24 object-contain mb-4 drop-shadow-lg" />
           <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
             La Viña Band
           </h2>

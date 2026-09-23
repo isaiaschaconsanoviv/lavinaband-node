@@ -10,6 +10,8 @@ const UserSchema = new mongoose.Schema({
     enum: ['ADMIN', 'MEMBER', 'GUEST'], 
     default: 'GUEST' 
   },
+  roleColor: { type: String, default: '#71717a' }, // Default zinc-500
+  pushSubscriptions: { type: Array, default: [] }
 }, { timestamps: true });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

@@ -6,7 +6,10 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 import WeeklyReadingCard from '@/components/WeeklyReadingCard';
+import BulletinBoardCard from '@/components/BulletinBoardCard';
 import Setting from '@/models/Setting';
+import PushNotificationManager from '@/components/PushNotificationManager';
+
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -30,6 +33,9 @@ export default async function DashboardPage() {
   const readingSetting = await Setting.findOne({ key: 'weeklyReading' }).lean();
   const weeklyReading = readingSetting?.value || '';
 
+  const bulletinSetting = await Setting.findOne({ key: 'bulletinBoard' }).lean();
+  const bulletinAnnouncements = bulletinSetting?.value || [];
+
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -45,6 +51,8 @@ export default async function DashboardPage() {
           <strong>Aviso:</strong> Tu cuenta está en modo invitado. No podrás ver información sensible hasta que un administrador apruebe tu acceso.
         </div>
       )}
+
+      <PushNotificationManager hideWhenSubscribed={true} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Próximo Ensayo */}
@@ -93,6 +101,9 @@ export default async function DashboardPage() {
 
         {/* Lectura Semanal */}
         <WeeklyReadingCard initialReading={weeklyReading} role={role} />
+        
+        {/* Tablón de Anuncios */}
+        <BulletinBoardCard initialAnnouncements={bulletinAnnouncements} role={role} userName={userName} />
       </div>
     </div>
   );

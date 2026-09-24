@@ -10,7 +10,7 @@ export default function Sidebar({ userRole, userName }: { userRole?: string; use
     { name: 'Inicio', path: '/dashboard', icon: '🏠' },
     { name: 'Canciones', path: '/songs', icon: '🎵' },
     { name: 'Set Lists', path: '/setlists', icon: '📋' },
-    { name: 'Rol Set Lists', path: '/setlist-roles', icon: '📅' },
+    { name: 'Rol', path: '/setlist-roles', icon: '📅' },
     { name: 'Perfil', path: '/profile', icon: '👤' },
   ];
 
@@ -110,3 +110,4 @@ export default function Sidebar({ userRole, userName }: { userRole?: string; use
     </>
   );
 }
+

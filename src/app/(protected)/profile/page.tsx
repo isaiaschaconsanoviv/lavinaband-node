@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
@@ -29,6 +30,7 @@ export default async function ProfilePage() {
             initialName={user.name} 
             initialEmail={user.email} 
             initialRoleColor={user.roleColor || '#71717a'} 
+            initialSetListRoleStatus={user.setListRoleStatus || 'NONE'}
           />
         </div>
 

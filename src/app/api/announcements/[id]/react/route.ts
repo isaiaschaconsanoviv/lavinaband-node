@@ -35,6 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     await announcement.save();
+    await announcement.populate('reactions.userId', 'name');
     revalidatePath('/dashboard');
     return NextResponse.json(announcement);
   } catch (error) {

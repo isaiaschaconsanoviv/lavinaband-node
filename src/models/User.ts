@@ -11,6 +11,7 @@ const UserSchema = new mongoose.Schema({
     default: 'GUEST' 
   },
   roleColor: { type: String, default: '#71717a' }, // Default zinc-500
+  setListRoleStatus: { type: String, enum: ['NONE', 'PENDING', 'APPROVED'], default: 'NONE' },
   pushSubscriptions: { type: Array, default: [] }
 }, { timestamps: true });
 

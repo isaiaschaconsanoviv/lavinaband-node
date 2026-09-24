@@ -7,15 +7,18 @@ import toast from 'react-hot-toast';
 export default function ProfileForm({ 
   initialName, 
   initialEmail, 
-  initialRoleColor 
+  initialRoleColor, 
+  initialSetListRoleStatus = 'NONE'
 }: { 
   initialName: string, 
   initialEmail: string,
-  initialRoleColor: string
+  initialRoleColor: string,
+  initialSetListRoleStatus?: 'NONE' | 'PENDING' | 'APPROVED'
 }) {
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
   const [roleColor, setRoleColor] = useState(initialRoleColor);
+  const [setListRoleStatus, setSetListRoleStatus] = useState(initialSetListRoleStatus);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,7 +36,7 @@ export default function ProfileForm({
       const res = await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, currentPassword, newPassword, roleColor })
+        body: JSON.stringify({ name, email, currentPassword, newPassword, roleColor, requestSetListRole: setListRoleStatus === 'PENDING' && initialSetListRoleStatus === 'NONE', optOutSetListRole: setListRoleStatus === 'NONE' && (initialSetListRoleStatus === 'APPROVED' || initialSetListRoleStatus === 'PENDING') })
       });
 
       const data = await res.json();
@@ -46,7 +49,7 @@ export default function ProfileForm({
         toast.error(data.error || 'Error al actualizar perfil');
       }
     } catch (err) {
-      toast.error('Ocurrió un error inesperado');
+      toast.error('Ocurri&oacute; un error inesperado');
     } finally {
       setLoading(false);
     }
@@ -66,7 +69,7 @@ export default function ProfileForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-zinc-300">Correo Electrónico</label>
+        <label className="block text-sm font-medium text-zinc-300">Correo Electr&oacute;nico</label>
         <input 
           type="email" 
           value={email} 
@@ -91,11 +94,50 @@ export default function ProfileForm({
         </div>
       </div>
 
+
       <hr className="border-zinc-800 my-4" />
-      <h4 className="text-sm font-semibold text-zinc-400">Cambiar Contraseña (Opcional)</h4>
+      <div className="flex items-start gap-3 p-4 bg-zinc-800/30 rounded-lg border border-zinc-700/50">
+        <div className="flex items-center h-5 mt-1">
+          <input
+            id="role-checkbox"
+            type="checkbox"
+            checked={setListRoleStatus !== 'NONE'}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setSetListRoleStatus('PENDING');
+              } else {
+                setSetListRoleStatus('NONE');
+              }
+            }}
+            disabled={initialSetListRoleStatus === 'PENDING' && setListRoleStatus === 'PENDING'}
+            className="w-5 h-5 rounded border-zinc-600 text-blue-500 focus:ring-blue-500/20 focus:ring-offset-zinc-900 bg-zinc-900"
+          />
+        </div>
+        <div className="flex flex-col">
+          <label htmlFor="role-checkbox" className="text-sm font-medium text-zinc-200 cursor-pointer">
+            Quiero participar en el Rol de Set Lists
+          </label>
+          <p className="text-xs text-zinc-400 mt-1">
+            Al activar esta opci&oacute;n, solicitar&aacute;s a los administradores integrarte a la rotaci&oacute;n semanal para armar los set lists.
+          </p>
+          {setListRoleStatus === 'PENDING' && (
+            <span className="inline-block mt-2 text-xs font-semibold text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded-md w-fit">
+              Solicitud pendiente de aprobaci&oacute;n
+            </span>
+          )}
+          {setListRoleStatus === 'APPROVED' && (
+            <span className="inline-block mt-2 text-xs font-semibold text-green-500 bg-green-500/10 px-2 py-1 rounded-md w-fit">
+              Eres miembro activo del rol
+            </span>
+          )}
+        </div>
+      </div>
+
+      <hr className="border-zinc-800 my-4" />
+      <h4 className="text-sm font-semibold text-zinc-400">Cambiar Contrase&ntilde;a (Opcional)</h4>
 
       <div>
-        <label className="block text-sm font-medium text-zinc-300">Contraseña Actual</label>
+        <label className="block text-sm font-medium text-zinc-300">Contrase&ntilde;a Actual</label>
         <input 
           type="password" 
           value={currentPassword} 
@@ -106,7 +148,7 @@ export default function ProfileForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-zinc-300">Nueva Contraseña</label>
+        <label className="block text-sm font-medium text-zinc-300">Nueva Contrase&ntilde;a</label>
         <input 
           type="password" 
           value={newPassword} 

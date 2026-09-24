@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
+import Announcement from '@/models/Announcement';
 import bcrypt from 'bcryptjs';
 
 export async function PUT(req: Request) {
@@ -22,7 +24,11 @@ export async function PUT(req: Request) {
     }
 
     // Update basic fields
-    if (name) user.name = name;
+    if (name && name !== user.name) {
+      const oldName = user.name;
+      user.name = name;
+      await Announcement.updateMany({ author: oldName }, { author: name });
+    }
     if (email && email !== user.email) {
       const existingUser = await User.findOne({ email });
       if (existingUser) {
@@ -45,9 +51,12 @@ export async function PUT(req: Request) {
     }
 
     await user.save();
+    revalidatePath('/dashboard');
     return NextResponse.json({ success: true, message: 'Profile updated' });
   } catch (error: any) {
     console.error('Profile update error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+

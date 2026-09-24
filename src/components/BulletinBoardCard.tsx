@@ -10,11 +10,13 @@ import { es } from 'date-fns/locale';
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
 
 interface Announcement {
-  id: string;
+  _id?: string;
+  id?: string;
   title?: string;
   text: string;
   date: string;
   author: string;
+  reactions?: { userId: string, type: string }[];
 }
 
 interface BulletinBoardCardProps {
@@ -127,7 +129,7 @@ export default function BulletinBoardCard({ initialAnnouncements, role, userName
     if (editId) {
       // Update existing
       updatedList = announcements.map(a => 
-        a.id === editId ? { ...a, title: newTitle, text: newText } : a
+        (a._id || a.id) === editId ? { ...a, title: newTitle, text: newText } : a
       );
     } else {
       // Create new
@@ -152,14 +154,14 @@ export default function BulletinBoardCard({ initialAnnouncements, role, userName
   };
 
   const handleDelete = (id: string) => {
-    const updatedList = announcements.filter(a => a.id !== id);
+    const updatedList = announcements.filter(a => (a._id || a.id) !== id);
     handleSaveList(updatedList);
   };
   
   const handleEditInit = (ann: Announcement) => {
     setNewTitle(ann.title || 'Anuncio sin título');
     setNewText(ann.text);
-    setEditId(ann.id);
+    setEditId((ann._id || ann.id) as string);
     setIsEditing(true);
   };
 
@@ -254,9 +256,9 @@ export default function BulletinBoardCard({ initialAnnouncements, role, userName
         ) : (
           currentAnnouncements.map((ann) => (
             <div 
-              key={ann.id} 
+              key={ann._id || (ann._id || ann.id)} 
               className="group relative flex flex-col sm:flex-row sm:items-center justify-between py-5 px-2 sm:px-4 border-b border-zinc-800/80 last:border-0 hover:bg-zinc-800/30 rounded-lg transition-colors cursor-pointer -mx-2 sm:-mx-4"
-              onClick={() => setSelectedAnnouncement(ann)}
+              onClick={() => window.location.href = `/anuncios/${ann._id || (ann._id || ann.id)}`}
             >
               <div className="flex-1 pr-4">
                 <h4 className="text-xl font-bold text-blue-400 mb-2 group-hover:text-blue-300 transition-colors">
@@ -271,6 +273,23 @@ export default function BulletinBoardCard({ initialAnnouncements, role, userName
                   </div>
                   <span className="text-zinc-600 hidden sm:inline">•</span>
                   <span className="text-zinc-500">{format(new Date(ann.date), "d MMM yyyy, HH:mm", { locale: es })}</span>
+                  {ann.reactions && ann.reactions.length > 0 && (() => {
+                    const uniqueReactions = Array.from(new Set(ann.reactions.map(r => r.type)));
+                    const emojiMap: Record<string, string> = { LIKE: '👍', LOVE: '❤️', AMEN: '🙏', PRAY: '🙌' };
+                    return (
+                      <>
+                        <span className="text-zinc-600 hidden sm:inline">•</span>
+                        <div className="flex items-center gap-1 bg-zinc-800/50 px-2 py-0.5 rounded-full border border-zinc-700/50 shadow-sm">
+                          <div className="flex -space-x-1.5">
+                            {uniqueReactions.slice(0, 3).map(type => (
+                              <span key={type} className="text-[12px] bg-zinc-900 rounded-full w-5 h-5 flex items-center justify-center border border-zinc-700">{emojiMap[type]}</span>
+                            ))}
+                          </div>
+                          <span className="text-xs font-bold text-zinc-300 ml-1">{ann.reactions.length}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
               
@@ -284,7 +303,7 @@ export default function BulletinBoardCard({ initialAnnouncements, role, userName
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                   </button>
                   <button 
-                    onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(ann.id); }}
+                    onClick={(e) => { e.stopPropagation(); setDeleteConfirmId((ann._id || ann.id) as string); }}
                     className="p-2 text-red-400 bg-red-900/20 hover:bg-red-900/50 rounded-lg transition-colors"
                     title="Eliminar anuncio"
                   >
@@ -296,53 +315,6 @@ export default function BulletinBoardCard({ initialAnnouncements, role, userName
           ))
         )}
       </div>
-
-      {/* Reading Modal */}
-      {selectedAnnouncement && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 pt-16 sm:pt-20">
-          <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setSelectedAnnouncement(null)}
-          ></div>
-          <div className="relative w-full max-w-3xl bg-zinc-900 border border-zinc-700 shadow-2xl rounded-2xl flex flex-col max-h-[80vh] sm:max-h-[85vh]">
-            
-            {/* Modal Header */}
-            <div className="flex items-start justify-between p-6 border-b border-zinc-800">
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-2">{selectedAnnouncement.title || 'Anuncio'}</h2>
-                <div className="flex items-center gap-3 text-sm text-zinc-400">
-                  <span className="flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                    {selectedAnnouncement.author}
-                  </span>
-                  <span>•</span>
-                  <span>{format(new Date(selectedAnnouncement.date), "d 'de' MMMM yyyy, HH:mm", { locale: es })}</span>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedAnnouncement(null)}
-                className="p-2 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
-              </button>
-            </div>
-            
-            {/* Modal Content */}
-            <div 
-              className="p-6 overflow-y-auto overflow-x-hidden"
-              style={{
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#52525b transparent'
-              }}
-            >
-              <div 
-                className="prose prose-invert prose-lg max-w-none w-full text-zinc-300 leading-relaxed break-words whitespace-pre-wrap [&_img]:rounded-xl [&_img]:shadow-lg [&_img]:!max-w-full [&_img]:h-auto [&_img]:mx-auto [&_img]:my-6 [&_a]:text-blue-400 hover:[&_a]:underline [&_*]:!max-w-full"
-                dangerouslySetInnerHTML={{ __html: selectedAnnouncement.text.replace(/&nbsp;/g, ' ') }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (

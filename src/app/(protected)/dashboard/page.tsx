@@ -8,6 +8,8 @@ import Link from 'next/link';
 import WeeklyReadingCard from '@/components/WeeklyReadingCard';
 import BulletinBoardCard from '@/components/BulletinBoardCard';
 import Setting from '@/models/Setting';
+import Announcement from '@/models/Announcement';
+import '@/models/User';
 import PushNotificationManager from '@/components/PushNotificationManager';
 
 
@@ -31,8 +33,11 @@ export default async function DashboardPage() {
   const readingSetting = await Setting.findOne({ key: 'weeklyReading' }).lean();
   const weeklyReading = readingSetting?.value || '';
 
-  const bulletinSetting = await Setting.findOne({ key: 'bulletinBoard' }).lean();
-  const bulletinAnnouncements = bulletinSetting?.value || [];
+  const announcementsData = await Announcement.find().sort({ date: -1 }).lean();
+  const bulletinAnnouncements = JSON.parse(JSON.stringify(announcementsData)).map((a: any) => ({
+    ...a,
+    id: a._id
+  }));
 
 
   return (

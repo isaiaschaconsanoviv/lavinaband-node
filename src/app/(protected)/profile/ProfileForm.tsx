@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 
 export default function ProfileForm({ 
@@ -18,6 +19,7 @@ export default function ProfileForm({
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { update } = useSession();
 
   const predefinedColors = [
     '#ef4444', '#f97316', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e', '#71717a'
@@ -36,6 +38,7 @@ export default function ProfileForm({
 
       const data = await res.json();
       if (res.ok) {
+        await update({ name });
         toast.success('Perfil actualizado correctamente');
         setCurrentPassword('');
         setNewPassword('');
@@ -123,3 +126,4 @@ export default function ProfileForm({
     </form>
   );
 }
+

@@ -168,7 +168,7 @@ export default async function SetListRolesPage() {
                         <ConfirmTurnButton assignmentId={assignment._id} />
                       )}
 
-                      {isAdmin && assignment.status === 'PENDING' && (
+                      {isAdmin && (assignment.status === 'PENDING' || assignment.status === 'CONFIRMED') && (
                         <div className="mt-4 pt-4 border-t border-zinc-800/60">
                            <ChangeAssigneeButton 
                              assignmentId={assignment._id} 

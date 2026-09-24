@@ -7,6 +7,8 @@ import RoleSettings from '@/models/RoleSettings';
 import RoleAssignment from '@/models/RoleAssignment';
 import PendingRequests from './PendingRequests';
 import RoleControls from './RoleControls';
+import ConfirmTurnButton from './ConfirmTurnButton';
+import ChangeAssigneeButton from './ChangeAssigneeButton';
 
 export default async function SetListRolesPage() {
   const session = await getServerSession(authOptions);
@@ -33,7 +35,7 @@ export default async function SetListRolesPage() {
 
   const rawAssignments = await RoleAssignment.find()
     .sort({ weekOf: 1 })
-    .populate('assignedUser', 'name roleColor image')
+    .populate('assignedUser', 'name email roleColor image')
     .lean();
     
   const assignments = rawAssignments.map(a => ({
@@ -162,11 +164,17 @@ export default async function SetListRolesPage() {
                         </div>
                       </div>
 
+                      {isAssignedToMe && assignment.status === 'PENDING' && (
+                        <ConfirmTurnButton assignmentId={assignment._id} />
+                      )}
+
                       {isAdmin && assignment.status === 'PENDING' && (
                         <div className="mt-4 pt-4 border-t border-zinc-800/60">
-                           <button className="w-full py-1.5 text-xs text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded transition-colors">
-                             Cambiar Encargado (Próximamente)
-                           </button>
+                           <ChangeAssigneeButton 
+                             assignmentId={assignment._id} 
+                             currentAssigneeId={assignment.assignedUser._id}
+                             approvedUsers={approvedUsers}
+                           />
                         </div>
                       )}
                     </div>

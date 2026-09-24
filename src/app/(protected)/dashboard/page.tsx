@@ -1,4 +1,4 @@
-import { getServerSession } from 'next-auth';
+﻿import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import Setlist from '@/models/Setlist';
@@ -9,9 +9,10 @@ import WeeklyReadingCard from '@/components/WeeklyReadingCard';
 import BulletinBoardCard from '@/components/BulletinBoardCard';
 import Setting from '@/models/Setting';
 import Announcement from '@/models/Announcement';
+import RoleSettings from '@/models/RoleSettings';
+import RoleAssignment from '@/models/RoleAssignment';
 import '@/models/User';
 import PushNotificationManager from '@/components/PushNotificationManager';
-
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -28,8 +29,6 @@ export default async function DashboardPage() {
     rehearsalDate: { $gte: today } 
   }).sort({ rehearsalDate: 1 }).lean();
 
-
-
   const readingSetting = await Setting.findOne({ key: 'weeklyReading' }).lean();
   const weeklyReading = readingSetting?.value || '';
 
@@ -39,6 +38,19 @@ export default async function DashboardPage() {
     id: a._id
   }));
 
+  const settings = await RoleSettings.findOne({ singletonId: 'config' }).lean();
+  let activeAssignment: any = null;
+  
+  if (settings?.isActive) {
+    let currentWeekStart = new Date();
+    currentWeekStart.setHours(0, 0, 0, 0);
+    currentWeekStart.setDate(currentWeekStart.getDate() - (currentWeekStart.getDay() || 7) + 1);
+
+    activeAssignment = await RoleAssignment.findOne({
+      weekOf: { $lte: currentWeekStart },
+      sundayDate: { $gte: today }
+    }).sort({ weekOf: -1 }).populate('assignedUser', 'name roleColor image').lean();
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -57,7 +69,7 @@ export default async function DashboardPage() {
 
       <PushNotificationManager hideWhenSubscribed={true} />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Próximo Ensayo */}
         <div className="bg-zinc-900/60 backdrop-blur border border-zinc-700/50 rounded-xl p-6 shadow-lg flex flex-col justify-between">
           <div>
@@ -80,7 +92,30 @@ export default async function DashboardPage() {
           )}
         </div>
 
-
+        {/* Encargado Set List */}
+        {settings?.isActive && (
+          <div className="bg-zinc-900/60 backdrop-blur border border-zinc-700/50 rounded-xl p-6 shadow-lg flex flex-col justify-between">
+            <div>
+              <h3 className="text-lg font-semibold mb-4 text-blue-400">Rol Set List (Esta Semana)</h3>
+              {activeAssignment ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg text-zinc-200 border-2" style={{ borderColor: activeAssignment.assignedUser.roleColor || '#71717a', backgroundColor: `${activeAssignment.assignedUser.roleColor || '#71717a'}33` }}>
+                    {activeAssignment.assignedUser.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-bold text-zinc-100">{activeAssignment.assignedUser.name}</p>
+                    <p className="text-xs text-zinc-400 mt-1">Jue {format(new Date(activeAssignment.thursdayDate), "d MMM", { locale: es })} - Dom {format(new Date(activeAssignment.sundayDate), "d MMM", { locale: es })}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-zinc-300 text-sm">No hay encargado asignado esta semana.</p>
+              )}
+            </div>
+            <Link href="/setlist-roles" className="mt-4 inline-block text-sm text-blue-400 hover:text-blue-300">
+              Ver calendario &rarr;
+            </Link>
+          </div>
+        )}
 
         {/* Lectura Semanal */}
         <WeeklyReadingCard initialReading={weeklyReading} role={role} />

@@ -9,6 +9,7 @@ import PendingRequests from './PendingRequests';
 import RoleControls from './RoleControls';
 import ConfirmTurnButton from './ConfirmTurnButton';
 import ChangeAssigneeButton from './ChangeAssigneeButton';
+import CompleteTurnButton from './CompleteTurnButton';
 
 export default async function SetListRolesPage() {
   const session = await getServerSession(authOptions);
@@ -116,7 +117,7 @@ export default async function SetListRolesPage() {
                   const weekStart = new Date(assignment.weekOf);
                   const isCurrentWeek = new Date() >= weekStart && new Date() <= new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
                   const isPast = new Date() > new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-                  const isAssignedToMe = session?.user?.email === assignment.assignedUser.email; // Wait, email not populated. Let's match by name for now, or just leave it.
+                  const isAssignedToMe = (session?.user as any)?.id === assignment.assignedUser._id || session?.user?.email === assignment.assignedUser.email;
                   
                   return (
                     <div 
@@ -166,6 +167,10 @@ export default async function SetListRolesPage() {
 
                       {isAssignedToMe && assignment.status === 'PENDING' && (
                         <ConfirmTurnButton assignmentId={assignment._id} />
+                      )}
+
+                      {isAssignedToMe && assignment.status === 'CONFIRMED' && (
+                        <CompleteTurnButton assignmentId={assignment._id} />
                       )}
 
                       {isAdmin && (assignment.status === 'PENDING' || assignment.status === 'CONFIRMED') && (

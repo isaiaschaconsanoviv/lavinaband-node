@@ -5,15 +5,16 @@ import Song from '@/models/Song';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || (session.user as any).role !== 'ADMIN') {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
     
+    const { id } = await params;
     await dbConnect();
-    const song = await Song.findByIdAndUpdate(params.id, { status: 'ACTIVE' }, { new: true });
+    const song = await Song.findByIdAndUpdate(id, { status: 'ACTIVE' }, { new: true });
     
     if (!song) return NextResponse.json({ success: false, error: 'No encontrado' }, { status: 404 });
     
@@ -23,15 +24,16 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || (session.user as any).role !== 'ADMIN') {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
     
+    const { id } = await params;
     await dbConnect();
-    const song = await Song.findByIdAndDelete(params.id);
+    const song = await Song.findByIdAndDelete(id);
     
     if (!song) return NextResponse.json({ success: false, error: 'No encontrado' }, { status: 404 });
     

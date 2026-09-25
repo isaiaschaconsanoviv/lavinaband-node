@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import SuggestSongModal from '@/components/songs/SuggestSongModal';
 import SongDetailsModal from '@/components/songs/SongDetailsModal';
+import SuggestionsModal from '@/components/songs/SuggestionsModal';
 import ImportMuflButton from '@/components/ImportMuflButton';
 
 export default function SongsClient({ initialSongs, role }: { initialSongs: any[], role: string }) {
@@ -22,6 +23,7 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
 
   // Modals state
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
+  const [isSuggestionsModalOpen, setIsSuggestionsModalOpen] = useState(false);
   const [selectedSong, setSelectedSong] = useState<any>(null);
 
   // Filters & Sorting logic
@@ -86,7 +88,19 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
         </div>
         
         <div className="flex gap-3 w-full md:w-auto">
-          {role === 'ADMIN' && <ImportMuflButton />}
+          {role === 'ADMIN' && (
+            <>
+              <button 
+                onClick={() => setIsSuggestionsModalOpen(true)}
+                className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-blue-400 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 border border-blue-500/20"
+                title="Ver sugerencias pendientes"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                <span className="hidden md:inline">Sugerencias</span>
+              </button>
+              <ImportMuflButton />
+            </>
+          )}
           <button 
             onClick={() => setIsSuggestModalOpen(true)}
             className="flex-1 md:flex-none px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(37,99,235,0.2)] hover:shadow-[0_0_25px_rgba(37,99,235,0.4)] flex items-center justify-center gap-2"
@@ -271,6 +285,11 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
         isOpen={isSuggestModalOpen} 
         onClose={() => setIsSuggestModalOpen(false)} 
         onSuccess={() => {}}
+      />
+      <SuggestionsModal
+        isOpen={isSuggestionsModalOpen}
+        onClose={() => setIsSuggestionsModalOpen(false)}
+        onApprove={() => window.location.reload()}
       />
       <SongDetailsModal 
         song={selectedSong} 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 export default function SuggestSongModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) {
-  const [formData, setFormData] = useState({ title: '', artist: '', key: '', youtubeLink: '', lyrics: '' });
+  const [formData, setFormData] = useState({ title: '', artist: '', youtubeLink: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -22,7 +22,7 @@ export default function SuggestSongModal({ isOpen, onClose, onSuccess }: { isOpe
       const data = await res.json();
       
       if (data.success) {
-        setFormData({ title: '', artist: '', key: '', youtubeLink: '', lyrics: '' });
+        setFormData({ title: '', artist: '', youtubeLink: '' });
         setSuccessMsg('¡Canción sugerida exitosamente!');
         setTimeout(() => {
           setSuccessMsg('');
@@ -63,21 +63,9 @@ export default function SuggestSongModal({ isOpen, onClose, onSuccess }: { isOpe
             <input required type="text" value={formData.artist} onChange={e => setFormData({...formData, artist: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="Ej. La Viña" />
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-300">Tono</label>
-              <input type="text" value={formData.key} onChange={e => setFormData({...formData, key: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="Ej. G" />
-            </div>
-            
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-300">Enlace (YouTube)</label>
-              <input type="url" value={formData.youtubeLink} onChange={e => setFormData({...formData, youtubeLink: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="https://..." />
-            </div>
-          </div>
-
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-300">Letra (Opcional)</label>
-            <textarea rows={4} value={formData.lyrics} onChange={e => setFormData({...formData, lyrics: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="Escribe o pega la letra aquí..." />
+            <label className="text-sm font-medium text-zinc-300">Enlace (YouTube)</label>
+            <input type="url" value={formData.youtubeLink} onChange={e => setFormData({...formData, youtubeLink: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="https://..." />
           </div>
 
           <div className="pt-4 flex justify-end gap-3">

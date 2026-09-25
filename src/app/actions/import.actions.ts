@@ -81,3 +81,43 @@ export async function importHolyricsMufl(formData: FormData) {
     return { success: false, message: 'Error inesperado: ' + error.message };
   }
 }
+
+export async function importMuflForSong(songId: string, formData: FormData) {
+  try {
+    const session = await getServerSession(authOptions);
+    if ((session?.user as any)?.role !== 'ADMIN') {
+      return { success: false, message: 'No tienes permisos.' };
+    }
+
+    const file = formData.get('file') as File;
+    if (!file) return { success: false, message: 'No se envió archivo.' };
+
+    const arrayBuffer = await file.arrayBuffer();
+    const parsed = javaDeserialization.parse(Buffer.from(arrayBuffer));
+
+    if (!Array.isArray(parsed) || parsed.length === 0 || !parsed[0].list || parsed[0].list.length === 0) {
+      return { success: false, message: 'Archivo inválido o vacío.' };
+    }
+
+    const item = parsed[0].list[0]; // Take the first song
+    
+    await dbConnect();
+    const song = await Song.findByIdAndUpdate(songId, {
+      $set: {
+        key: item.note || '',
+        lyrics: item.lyrics || item.text || item.songText || item.letra || '',
+        formatting: item.formatting || '',
+        lyricsHTML: item.lyricsHTML || '',
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!song) return { success: false, message: 'Canción no encontrada.' };
+
+    revalidatePath('/songs');
+    return { success: true, message: '¡Canción aprobada y actualizada con el archivo!' };
+  } catch (error: any) {
+    console.error('Import specific error:', error);
+    return { success: false, message: 'Error inesperado: ' + error.message };
+  }
+}

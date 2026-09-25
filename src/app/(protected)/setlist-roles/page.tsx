@@ -115,8 +115,13 @@ export default async function SetListRolesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {assignments.map((assignment: any) => {
                   const weekStart = new Date(assignment.weekOf);
-                  const isCurrentWeek = new Date() >= weekStart && new Date() <= new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-                  const isPast = new Date() > new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+                  const thursday = new Date(assignment.thursdayDate);
+                  const startOfTurn = new Date(thursday.getTime() - 6 * 24 * 60 * 60 * 1000); // Viernes anterior
+                  const endOfTurn = new Date(thursday.getTime() + 1 * 24 * 60 * 60 * 1000); // Viernes
+
+                  const now = new Date();
+                  const isCurrentWeek = now >= startOfTurn && now < endOfTurn;
+                  const isPast = now >= endOfTurn;
                   const isAssignedToMe = (session?.user as any)?.id === assignment.assignedUser._id || session?.user?.email === assignment.assignedUser.email;
                   
                   return (
@@ -156,12 +161,12 @@ export default async function SetListRolesPage() {
 
                       <div className="pt-4 border-t border-zinc-800/60 flex flex-col gap-2">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-zinc-500 font-medium uppercase">Jueves</span>
-                          <span className="text-zinc-300 font-semibold">{new Date(assignment.thursdayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
                           <span className="text-zinc-500 font-medium uppercase">Domingo</span>
                           <span className="text-zinc-300 font-semibold">{new Date(assignment.sundayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-zinc-500 font-medium uppercase">Jueves</span>
+                          <span className="text-zinc-300 font-semibold">{new Date(assignment.thursdayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
                         </div>
                       </div>
 

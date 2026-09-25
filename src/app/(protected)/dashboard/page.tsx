@@ -1,8 +1,10 @@
-﻿import { getServerSession } from 'next-auth';
+export const dynamic = 'force-dynamic';
+
+import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import Setlist from '@/models/Setlist';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, subDays, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 import WeeklyReadingCard from '@/components/WeeklyReadingCard';
@@ -42,14 +44,15 @@ export default async function DashboardPage() {
   let activeAssignment: any = null;
   
   if (settings?.isActive) {
-    let currentWeekStart = new Date();
-    currentWeekStart.setHours(0, 0, 0, 0);
-    currentWeekStart.setDate(currentWeekStart.getDate() - (currentWeekStart.getDay() || 7) + 1);
+    // El turno abarca desde el Domingo hasta el Jueves.
+    // El cambio de turno ocurre el Viernes. Por lo tanto, el turno activo
+    // es aquel cuyo thursdayDate es mayor o igual a hoy (inicio del día).
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     activeAssignment = await RoleAssignment.findOne({
-      weekOf: { $lte: currentWeekStart },
-      sundayDate: { $gte: today }
-    }).sort({ weekOf: -1 }).populate('assignedUser', 'name roleColor image').lean();
+      thursdayDate: { $gte: today }
+    }).sort({ weekOf: 1 }).populate('assignedUser', 'name roleColor image').lean();
   }
 
   return (
@@ -104,7 +107,7 @@ export default async function DashboardPage() {
                   </div>
                   <div>
                     <p className="font-bold text-zinc-100">{activeAssignment.assignedUser.name}</p>
-                    <p className="text-xs text-zinc-400 mt-1">Jue {format(new Date(activeAssignment.thursdayDate), "d MMM", { locale: es })} - Dom {format(new Date(activeAssignment.sundayDate), "d MMM", { locale: es })}</p>
+                    <p className="text-xs text-zinc-400 mt-1">Dom {format(new Date(activeAssignment.sundayDate), "d MMM", { locale: es })} - Jue {format(new Date(activeAssignment.thursdayDate), "d MMM", { locale: es })}</p>
                   </div>
                 </div>
               ) : (

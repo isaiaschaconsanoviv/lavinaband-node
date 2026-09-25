@@ -76,11 +76,11 @@ async function generateFutureWeeks() {
 
     const existing = await RoleAssignment.findOne({ weekOf });
     if (!existing) {
-      const thursdayDate = new Date(weekOf);
-      thursdayDate.setDate(thursdayDate.getDate() + 3); // Thursday
-      
       const sundayDate = new Date(weekOf);
-      sundayDate.setDate(sundayDate.getDate() + 6); // Sunday
+      sundayDate.setDate(sundayDate.getDate() + 6); // Sunday (End of current week)
+
+      const thursdayDate = new Date(weekOf);
+      thursdayDate.setDate(thursdayDate.getDate() + 10); // Thursday of NEXT week
 
       const assignedUser = users[lastAssignedIndex];
       

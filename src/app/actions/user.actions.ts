@@ -16,3 +16,21 @@ export async function updateUserRole(userId: string, newRole: string) {
   await User.findByIdAndUpdate(userId, { role: newRole });
   revalidatePath('/users');
 }
+
+export async function deleteUser(userId: string) {
+  const session = await getServerSession(authOptions);
+  
+  if ((session?.user as any)?.role !== 'ADMIN') {
+    throw new Error("No tienes permisos para realizar esta acción");
+  }
+
+  await dbConnect();
+  
+  // No permitir que el usuario se elimine a sí mismo
+  if ((session?.user as any)?.id === userId || session?.user?.email === (await User.findById(userId))?.email) {
+      throw new Error("No puedes eliminar tu propia cuenta");
+  }
+
+  await User.findByIdAndDelete(userId);
+  revalidatePath('/users');
+}

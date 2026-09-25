@@ -113,15 +113,15 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
 
       {/* Table */}
       <div className="bg-zinc-900/40 rounded-xl border border-zinc-700/50 overflow-hidden backdrop-blur-sm shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[600px]">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse md:min-w-[600px]">
             <thead className="bg-zinc-900/80 text-zinc-400 text-xs uppercase tracking-wider border-b border-zinc-700/50">
               <tr>
                 <th className="table-cell md:hidden p-4 w-10"></th>
                 <th className="p-4 font-semibold cursor-pointer group hover:text-white transition-colors select-none" onClick={() => handleSort('title')}>
                   <div className="flex items-center">Título <SortIcon field="title" /></div>
                 </th>
-                <th className="p-4 font-semibold cursor-pointer group hover:text-white transition-colors select-none" onClick={() => handleSort('artist')}>
+                <th className="hidden md:table-cell p-4 font-semibold cursor-pointer group hover:text-white transition-colors select-none" onClick={() => handleSort('artist')}>
                   <div className="flex items-center">Artista <SortIcon field="artist" /></div>
                 </th>
                 <th className="hidden md:table-cell p-4 font-semibold cursor-pointer group hover:text-white transition-colors select-none" onClick={() => handleSort('key')}>
@@ -166,9 +166,12 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
                       <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20">
                         <svg className="w-4 h-4 text-zinc-500 group-hover:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
                       </div>
-                      {song.title}
+                      <div className="flex flex-col">
+                        <span>{song.title}</span>
+                        <span className="text-xs text-zinc-500 md:hidden font-normal mt-0.5">{song.artist}</span>
+                      </div>
                     </td>
-                    <td className="p-4 text-zinc-400">{song.artist}</td>
+                    <td className="hidden md:table-cell p-4 text-zinc-400">{song.artist}</td>
                     <td className="hidden md:table-cell p-4">
                       {song.key ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-sm">
@@ -273,6 +276,7 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
         song={selectedSong} 
         isOpen={!!selectedSong} 
         onClose={() => setSelectedSong(null)} 
+        role={role}
       />
     </>
   );

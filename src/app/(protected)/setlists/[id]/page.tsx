@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import DatePicker from '@/components/DatePicker';
 import ConfirmModal from '@/components/ConfirmModal';
 import { format } from 'date-fns';
@@ -9,8 +10,9 @@ import { es } from 'date-fns/locale';
 import { DndContext, closestCenter, useSensor, useSensors, PointerSensor, TouchSensor } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import SongDetailsModal from '@/components/songs/SongDetailsModal';
 
-function SortableItem({ id, song, isReordering, onRemove, onUpdateSong }: { id: string, song: any, isReordering: boolean, onRemove: (id: string) => void, onUpdateSong: (id: string, updates: any) => void }) {
+function SortableItem({ id, song, isReordering, onRemove, onUpdateSong, isAdmin, canEdit, onOpenLyrics }: { id: string, song: any, isReordering: boolean, onRemove: (id: string) => void, onUpdateSong: (id: string, updates: any) => void, isAdmin: boolean, canEdit: boolean, onOpenLyrics: (song: any) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition };
   
@@ -49,15 +51,23 @@ function SortableItem({ id, song, isReordering, onRemove, onUpdateSong }: { id: 
         </div>
       )}
       <div className="flex-1">
-        <h4 className="font-medium flex items-center gap-2">
-          {song.title}
+        <div className="flex items-center gap-3">
+          <button onClick={() => onOpenLyrics(song)} className="font-medium text-lg text-zinc-100 hover:text-blue-400 text-left transition-colors">
+            {song.title}
+          </button>
           {song.youtubeLink && !isEditingYt && (
-            <a href={song.youtubeLink} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:text-red-400 transition-colors drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]" title="Ver en YouTube">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" /></svg>
+            <a 
+              href={song.youtubeLink} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="inline-flex items-center justify-center text-red-500 hover:text-white bg-red-500/10 hover:bg-red-500 p-1.5 rounded-lg transition-all shadow-[0_0_10px_rgba(239,68,68,0.2)] hover:shadow-[0_0_15px_rgba(239,68,68,0.5)]" 
+              title="Ver en YouTube"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" /></svg>
             </a>
           )}
-        </h4>
-        <p className="text-sm text-zinc-400">{song.artist} • {song.key || '-'}</p>
+        </div>
+        <p className="text-sm text-zinc-400 mt-0.5">{song.artist} • {song.key || '-'}</p>
         
         {isEditingYt && (
           <div className="mt-3 flex gap-2">
@@ -75,16 +85,18 @@ function SortableItem({ id, song, isReordering, onRemove, onUpdateSong }: { id: 
       </div>
 
       <div className="flex items-center gap-2">
-        {!isEditingYt && (
+        {!isEditingYt && isAdmin && (
           <button onClick={() => setIsEditingYt(true)} className="flex items-center gap-1 text-zinc-400 p-2" title={song.youtubeLink ? "Editar Link YouTube" : "Añadir YouTube"}>
             {!song.youtubeLink && <span className="flex items-center gap-1 text-xs font-medium"><svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 opacity-50 hover:opacity-100 hover:text-red-500 transition-all"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" /></svg></span>}
             {song.youtubeLink && <span className="text-xs font-semibold hover:text-blue-400">Editar</span>}
           </button>
         )}
-        {song.youtubeLink && !isEditingYt && (
+        {song.youtubeLink && !isEditingYt && isAdmin && (
           <button onClick={removeYtLink} className="text-zinc-500 hover:text-red-400 text-xs font-semibold p-2" title="Quitar YouTube">✕</button>
         )}
-        <button onClick={() => onRemove(id)} className="text-red-400 hover:text-red-300 text-xs font-semibold p-2 border-l border-zinc-700 ml-2 pl-4">Quitar</button>
+        {canEdit && (
+          <button onClick={() => onRemove(id)} className="text-red-400 hover:text-red-300 text-xs font-semibold p-2 border-l border-zinc-700 ml-2 pl-4">Quitar</button>
+        )}
       </div>
     </div>
   );
@@ -92,6 +104,9 @@ function SortableItem({ id, song, isReordering, onRemove, onUpdateSong }: { id: 
 
 export default function SetlistDetailPage() {
   const params = useParams();
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as any)?.role === 'ADMIN';
+  const currentUserId = (session?.user as any)?.id;
   const [setlist, setSetlist] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -100,6 +115,7 @@ export default function SetlistDetailPage() {
   const [showSelector, setShowSelector] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isReordering, setIsReordering] = useState(false);
+  const [selectedLyricsSong, setSelectedLyricsSong] = useState<any>(null);
 
   useEffect(() => {
     if (!params?.id) return;
@@ -199,6 +215,9 @@ export default function SetlistDetailPage() {
   if (!setlist || setlist.error) return <div className="p-8 text-center text-red-400">No se encontró el setlist. Detalle: {setlist?.error || 'Desconocido'} (ID: {params.id})</div>;
 
   const filteredSongs = allSongs.filter(s => s.title.toLowerCase().includes(searchTerm.toLowerCase()));
+  
+  const isCreator = setlist.createdBy?._id === currentUserId;
+  const canEdit = isAdmin || isCreator;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
@@ -206,44 +225,58 @@ export default function SetlistDetailPage() {
         <div className="w-full sm:w-auto flex-1 sm:mr-4">
           <input 
             type="text" 
-            className="text-3xl font-bold bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-blue-500 focus:outline-none w-full mb-3"
+            className="text-3xl font-bold bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-blue-500 focus:outline-none w-full mb-1 disabled:opacity-90 disabled:hover:border-transparent"
             value={setlist.title}
             onChange={(e) => setSetlist({ ...setlist, title: e.target.value })}
             onBlur={() => saveSetlist(setlist)}
+            disabled={!canEdit}
           />
+          {setlist.createdBy && setlist.createdBy.name && (
+            <p className="text-zinc-500 text-sm mb-4">
+              Creado por <span className="text-zinc-300">{setlist.createdBy.name}</span>
+            </p>
+          )}
           <div className="flex flex-wrap gap-4 items-center">
             <div className="flex items-center gap-2">
               <span className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Ensayo:</span>
-              <DatePicker 
-                value={setlist.rehearsalDate}
-                onChange={(date) => { 
-                  const updated = { ...setlist, rehearsalDate: date.toISOString() };
-                  setSetlist(updated);
-                  saveSetlist(updated);
-                }}
-              />
+              <div className={!canEdit ? 'pointer-events-none opacity-80' : ''}>
+                <DatePicker 
+                  value={setlist.rehearsalDate}
+                  onChange={(date) => { 
+                    if (!canEdit) return;
+                    const updated = { ...setlist, rehearsalDate: date.toISOString() };
+                    setSetlist(updated);
+                    saveSetlist(updated);
+                  }}
+                />
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Evento:</span>
-              <DatePicker 
-                value={setlist.date}
-                onChange={(date) => { 
-                  const updated = { ...setlist, date: date.toISOString() };
-                  setSetlist(updated);
-                  saveSetlist(updated);
-                }}
-              />
+              <div className={!canEdit ? 'pointer-events-none opacity-80' : ''}>
+                <DatePicker 
+                  value={setlist.date}
+                  onChange={(date) => { 
+                    if (!canEdit) return;
+                    const updated = { ...setlist, date: date.toISOString() };
+                    setSetlist(updated);
+                    saveSetlist(updated);
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
-        <div className="flex gap-3 w-full sm:w-auto">
-          <button onClick={deleteSetlist} className="flex-1 sm:flex-none px-4 py-2 bg-red-900/40 hover:bg-red-600/80 text-red-400 hover:text-white border border-red-900/50 hover:border-red-600 rounded-lg font-medium transition-colors">
-            Eliminar
-          </button>
-          <button onClick={() => setShowSelector(true)} className="flex-[2] sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-medium">
-            + Añadir Canción
-          </button>
-        </div>
+        {canEdit && (
+          <div className="flex gap-3 w-full sm:w-auto">
+            <button onClick={deleteSetlist} className="flex-1 sm:flex-none px-4 py-2 bg-red-900/40 hover:bg-red-600/80 text-red-400 hover:text-white border border-red-900/50 hover:border-red-600 rounded-lg font-medium transition-colors">
+              Eliminar
+            </button>
+            <button onClick={() => setShowSelector(true)} className="flex-[2] sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-medium">
+              + Añadir Canción
+            </button>
+          </div>
+        )}
       </header>
 
       <ConfirmModal
@@ -257,20 +290,26 @@ export default function SetlistDetailPage() {
         isDanger={true}
       />
 
-
-      
-
+      <SongDetailsModal
+        song={selectedLyricsSong}
+        isOpen={!!selectedLyricsSong}
+        onClose={() => setSelectedLyricsSong(null)}
+        role={(session?.user as any)?.role}
+        hideKeyAndVideo={true}
+      />
 
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Canciones</h2>
-            <button 
-              onClick={() => setIsReordering(!isReordering)}
-              className={`text-sm px-4 py-2 rounded-lg font-medium transition-colors border ${isReordering ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white'}`}
-            >
-              {isReordering ? '✓ Guardar Orden' : '⇅ Reordenar'}
-            </button>
+            {canEdit && setlist.songs.length > 0 && (
+              <button 
+                onClick={() => setIsReordering(!isReordering)}
+                className={`text-sm px-4 py-2 rounded-lg font-medium transition-colors border ${isReordering ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white'}`}
+              >
+                {isReordering ? '✓ Guardar Orden' : '⇅ Reordenar'}
+              </button>
+            )}
           </div>
           {setlist.songs.length === 0 ? (
             <div className="p-8 text-center text-zinc-500 bg-zinc-900/30 rounded-xl border border-zinc-700/30">
@@ -281,7 +320,7 @@ export default function SetlistDetailPage() {
               <SortableContext items={setlist.songs.map((s:any) => s.song._id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
                   {setlist.songs.map((item: any) => (
-                    <SortableItem key={item.song._id} id={item.song._id} song={item.song} isReordering={isReordering} onRemove={removeSong} onUpdateSong={updateSongInSetlist} />
+                    <SortableItem key={item.song._id} id={item.song._id} song={item.song} isReordering={isReordering && canEdit} onRemove={canEdit ? removeSong : () => {}} onUpdateSong={updateSongInSetlist} isAdmin={isAdmin} canEdit={canEdit} onOpenLyrics={setSelectedLyricsSong} />
                   ))}
                 </div>
               </SortableContext>
@@ -292,11 +331,12 @@ export default function SetlistDetailPage() {
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Notas</h2>
           <textarea 
-            className="w-full h-32 bg-zinc-900/60 p-4 rounded-xl border border-zinc-700/50 focus:outline-none focus:border-blue-500 text-zinc-300 resize-none"
-            placeholder="Notas para el ensayo..."
+            className="w-full h-32 bg-zinc-900/60 p-4 rounded-xl border border-zinc-700/50 focus:outline-none focus:border-blue-500 text-zinc-300 resize-none disabled:opacity-70 disabled:bg-zinc-900/40"
+            placeholder={canEdit ? "Notas para el ensayo..." : "Sin notas adicionales."}
             value={setlist.notes || ''}
             onChange={(e) => setSetlist({ ...setlist, notes: e.target.value })}
             onBlur={() => saveSetlist(setlist)}
+            disabled={!canEdit}
           />
 
           <h2 className="text-xl font-semibold mt-8">Asistencia</h2>

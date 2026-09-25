@@ -2,6 +2,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import ConfirmModal from '@/components/ConfirmModal';
 
 interface ParsedParagraph {
   header?: string;
@@ -66,18 +67,30 @@ function parseHolyrics(lyrics: string, formatting: string): ParsedParagraph[] | 
   }
 }
 
-export default function SongDetailsModal({ song, isOpen, onClose }: { song: any; isOpen: boolean; onClose: () => void }) {
+export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyAndVideo = false }: { song: any; isOpen: boolean; onClose: () => void; role?: string; hideKeyAndVideo?: boolean }) {
   const router = useRouter();
   const [youtubeLink, setYoutubeLink] = useState('');
   const [isEditingYoutube, setIsEditingYoutube] = useState(false);
   const [editYoutubeInput, setEditYoutubeInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Metadata edit state
+  const [isEditingMeta, setIsEditingMeta] = useState(false);
+  const [metaInput, setMetaInput] = useState({ title: '', artist: '', key: '', tempo: '' });
+  const [isDeleting, setIsDeleting] = useState(false);
+
   useEffect(() => {
     if (song) {
       setYoutubeLink(song.youtubeLink || '');
+      setMetaInput({
+        title: song.title || '',
+        artist: song.artist || '',
+        key: song.key || '',
+        tempo: song.tempo || ''
+      });
     }
     setIsEditingYoutube(false);
+    setIsEditingMeta(false);
   }, [song]);
 
   const parsedContent = useMemo(() => {
@@ -121,43 +134,128 @@ export default function SongDetailsModal({ song, isOpen, onClose }: { song: any;
     }
   };
 
+  const handleSaveMeta = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/songs/${song._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(metaInput)
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Información actualizada');
+        setIsEditingMeta(false);
+        router.refresh();
+        onClose(); // Cerrar el modal para que al abrirlo tenga los datos actualizados de la lista (o podríamos actualizar el prop local, pero onClose es más simple)
+      } else {
+        toast.error(data.error || 'Error al actualizar');
+      }
+    } catch (error) {
+      toast.error('Error de red al actualizar');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteSong = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/songs/${song._id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Canción eliminada correctamente');
+        setIsDeleting(false);
+        router.refresh();
+        onClose();
+      } else {
+        toast.error(data.error || 'Error al eliminar');
+      }
+    } catch (error) {
+      toast.error('Error de red al eliminar');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col">
         <div className="p-6 border-b border-zinc-800 flex justify-between items-start shrink-0 bg-zinc-900/50">
-          <div>
-            <h2 className="text-2xl font-bold text-white">{song.title}</h2>
-            <p className="text-zinc-400 text-lg">{song.artist}</p>
+          <div className="flex-1 mr-4">
+            {isEditingMeta ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-zinc-500 uppercase">Título</label>
+                  <input type="text" value={metaInput.title} onChange={e => setMetaInput({...metaInput, title: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-white" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500 uppercase">Artista</label>
+                  <input type="text" value={metaInput.artist} onChange={e => setMetaInput({...metaInput, artist: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-white" />
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="text-xs text-zinc-500 uppercase">Tono</label>
+                    <input type="text" value={metaInput.key} onChange={e => setMetaInput({...metaInput, key: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-zinc-500 uppercase">Tempo</label>
+                    <input type="text" value={metaInput.tempo} onChange={e => setMetaInput({...metaInput, tempo: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-white" />
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => setIsEditingMeta(false)} className="px-3 py-1.5 text-xs text-zinc-400 hover:text-white transition-colors bg-zinc-800 rounded">Cancelar</button>
+                  <button onClick={handleSaveMeta} disabled={isSaving} className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">{isSaving ? 'Guardando...' : 'Guardar'}</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-bold text-white">{song.title}</h2>
+                  {role === 'ADMIN' && (
+                    <button onClick={() => setIsEditingMeta(true)} className="text-blue-400 hover:text-blue-300 transition-colors" title="Editar información">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                    </button>
+                  )}
+                </div>
+                <p className="text-zinc-400 text-lg">{song.artist}</p>
+              </>
+            )}
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors bg-zinc-800/50 hover:bg-zinc-700 p-2 rounded-full">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
         
-        <div className="p-6 overflow-y-auto space-y-8 flex-1">
-          <div className="flex flex-wrap gap-4">
-            {song.key && (
-              <div className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                <span className="block text-xs text-blue-400 font-medium uppercase">Tono</span>
-                <span className="text-lg text-blue-100 font-bold font-mono">{song.key}</span>
-              </div>
-            )}
-            {song.tempo && (
-              <div className="px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-xl">
-                <span className="block text-xs text-purple-400 font-medium uppercase">Tempo</span>
-                <span className="text-lg text-purple-100 font-bold">{song.tempo} bpm</span>
-              </div>
-            )}
-          </div>
+        <div className={`flex-1 ${hideKeyAndVideo ? 'flex flex-col overflow-hidden' : 'p-6 overflow-y-auto space-y-8'}`}>
+          {!isEditingMeta && !hideKeyAndVideo && (
+            <div className="flex flex-wrap gap-4">
+              {song.key && (
+                <div className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                  <span className="block text-xs text-blue-400 font-medium uppercase">Tono</span>
+                  <span className="text-lg text-blue-100 font-bold font-mono">{song.key}</span>
+                </div>
+              )}
+              {song.tempo && (
+                <div className="px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+                  <span className="block text-xs text-purple-400 font-medium uppercase">Tempo</span>
+                  <span className="text-lg text-purple-100 font-bold">{song.tempo} bpm</span>
+                </div>
+              )}
+            </div>
+          )}
 
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                Letra y Acordes
-              </h3>
+          <div className={hideKeyAndVideo ? 'flex-1 flex flex-col min-h-0' : 'grid md:grid-cols-2 gap-8'}>
+            <div className={hideKeyAndVideo ? 'flex-1 flex flex-col min-h-0' : 'space-y-3'}>
+              {!hideKeyAndVideo && (
+                <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  Letra y Acordes
+                </h3>
+              )}
               
-              <div className="bg-zinc-950 rounded-xl p-5 border border-zinc-800/50 min-h-[300px] max-h-[600px] overflow-y-auto custom-scrollbar">
+              <div className={`bg-zinc-950 custom-scrollbar flex flex-col ${hideKeyAndVideo ? 'flex-1 overflow-y-auto p-6 sm:p-8' : 'rounded-xl p-5 border border-zinc-800/50 min-h-[300px] max-h-[600px] overflow-y-auto'}`}>
+                <div className="flex-1">
                 {parsedContent ? (
                   <div className="space-y-6 font-mono text-sm md:text-base leading-relaxed">
                     {parsedContent.map((para, i) => (
@@ -196,75 +294,95 @@ export default function SongDetailsModal({ song, isOpen, onClose }: { song: any;
                 ) : (
                   <p className="text-zinc-500 italic text-sm text-center mt-10">La letra no está disponible para esta canción.</p>
                 )}
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              {/* YouTube Section */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" /></svg>
-                    YouTube
-                  </h3>
-                  {!isEditingYoutube && (
-                    <button 
-                      onClick={() => {
-                        setEditYoutubeInput(youtubeLink);
-                        setIsEditingYoutube(true);
-                      }}
-                      className="text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-1 rounded transition-colors flex items-center gap-1"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                      {youtubeLink ? 'Editar' : 'Añadir link'}
-                    </button>
-                  )}
                 </div>
-
-                {isEditingYoutube ? (
-                  <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-3">
-                    <input 
-                      type="url" 
-                      placeholder="https://youtube.com/watch?v=..."
-                      value={editYoutubeInput}
-                      onChange={(e) => setEditYoutubeInput(e.target.value)}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-                    />
-                    <div className="flex justify-end gap-2">
-                      <button 
-                        onClick={() => setIsEditingYoutube(false)}
-                        disabled={isSaving}
-                        className="px-3 py-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
-                      >
-                        Cancelar
-                      </button>
-                      <button 
-                        onClick={handleSaveYoutube}
-                        disabled={isSaving}
-                        className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors flex items-center gap-1"
-                      >
-                        {isSaving ? 'Guardando...' : 'Guardar'}
-                      </button>
-                    </div>
-                  </div>
-                ) : youtubeId ? (
-                  <div className="rounded-xl overflow-hidden border border-zinc-800 aspect-video bg-black shadow-lg">
-                    <iframe 
-                      width="100%" 
-                      height="100%" 
-                      src={`https://www.youtube.com/embed/${youtubeId}`} 
-                      title="YouTube video player" 
-                      frameBorder="0" 
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                      allowFullScreen
-                    ></iframe>
-                  </div>
-                ) : (
-                  <div className="bg-zinc-950 border border-zinc-800/50 rounded-xl p-8 text-center">
-                    <p className="text-zinc-500 text-sm">No hay video de YouTube enlazado.</p>
+                {hideKeyAndVideo && (song.link || song.sheetLink) && (
+                  <div className="mt-8 pt-6 border-t border-zinc-900 flex gap-4">
+                     {song.link && (
+                       <a href={song.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 px-4 py-2 rounded-lg border border-blue-500/20 transition-colors">
+                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                         Audio / Spotify
+                       </a>
+                     )}
+                     {song.sheetLink && (
+                       <a href={song.sheetLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 px-4 py-2 rounded-lg border border-emerald-500/20 transition-colors">
+                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                         Partitura
+                       </a>
+                     )}
                   </div>
                 )}
               </div>
+            </div>
+
+            {!hideKeyAndVideo && (
+              <div className="space-y-6">
+              {/* YouTube Section */}
+              {!hideKeyAndVideo && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" /></svg>
+                      YouTube
+                    </h3>
+                    {!isEditingYoutube && (
+                      <button 
+                        onClick={() => {
+                          setEditYoutubeInput(youtubeLink);
+                          setIsEditingYoutube(true);
+                        }}
+                        className="text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        {youtubeLink ? 'Editar' : 'Añadir link'}
+                      </button>
+                    )}
+                  </div>
+
+                  {isEditingYoutube ? (
+                    <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-3">
+                      <input 
+                        type="url" 
+                        placeholder="https://youtube.com/watch?v=..."
+                        value={editYoutubeInput}
+                        onChange={(e) => setEditYoutubeInput(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => setIsEditingYoutube(false)}
+                          disabled={isSaving}
+                          className="px-3 py-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button 
+                          onClick={handleSaveYoutube}
+                          disabled={isSaving}
+                          className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors flex items-center gap-1"
+                        >
+                          {isSaving ? 'Guardando...' : 'Guardar'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : youtubeId ? (
+                    <div className="rounded-xl overflow-hidden border border-zinc-800 aspect-video bg-black shadow-lg">
+                      <iframe 
+                        width="100%" 
+                        height="100%" 
+                        src={`https://www.youtube.com/embed/${youtubeId}`} 
+                        title="YouTube video player" 
+                        frameBorder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allowFullScreen
+                      ></iframe>
+                    </div>
+                  ) : (
+                    <div className="bg-zinc-950 border border-zinc-800/50 rounded-xl p-8 text-center">
+                      <p className="text-zinc-500 text-sm">No hay video de YouTube enlazado.</p>
+                    </div>
+                  )}
+                </div>
+              )}
               
               {song.link || song.sheetLink ? (
                 <div className="space-y-3">
@@ -285,10 +403,34 @@ export default function SongDetailsModal({ song, isOpen, onClose }: { song: any;
                    </div>
                 </div>
               ) : null}
+
+              {/* Botón de eliminar */}
+              {role === 'ADMIN' && (
+                <div className="pt-6 border-t border-zinc-800 mt-6">
+                  <button 
+                    onClick={() => setIsDeleting(true)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors border border-red-500/20"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    Eliminar Canción
+                  </button>
+                </div>
+              )}
             </div>
+            )}
           </div>
         </div>
       </div>
+      <ConfirmModal
+        isOpen={isDeleting}
+        title="Eliminar Canción"
+        message={`¿Estás seguro de que deseas eliminar "${song.title}" permanentemente del repertorio? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        isDanger={true}
+        onConfirm={handleDeleteSong}
+        onCancel={() => setIsDeleting(false)}
+      />
     </div>
   );
 }

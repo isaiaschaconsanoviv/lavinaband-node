@@ -25,3 +25,26 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
     return NextResponse.json({ success: false, error: 'Server Error' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await getServerSession(authOptions);
+    // Verificar permisos (solo ADMIN) o si queremos dejarlo abierto a todos los registrados
+    if (!session || (session.user as any)?.role !== 'ADMIN') {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const params = await context.params;
+    await dbConnect();
+
+    const deletedSong = await Song.findByIdAndDelete(params.id);
+    
+    if (!deletedSong) {
+      return NextResponse.json({ success: false, error: 'Song not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, data: deletedSong });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Server Error' }, { status: 500 });
+  }
+}

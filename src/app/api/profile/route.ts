@@ -33,8 +33,10 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    const updates: any = {};
+
     if (requestSetListRole) {
-      user.setListRoleStatus = 'PENDING';
+      updates.setListRoleStatus = 'PENDING';
       
       // Notify admins
       const admins = await User.find({ role: 'ADMIN' });
@@ -56,14 +58,14 @@ export async function PUT(req: Request) {
         }
       }
     } else if (optOutSetListRole) {
-      user.setListRoleStatus = 'NONE';
+      updates.setListRoleStatus = 'NONE';
     }
 
 
     // Update basic fields
     if (name && name !== user.name) {
       const oldName = user.name;
-      user.name = name;
+      updates.name = name;
       await Announcement.updateMany({ author: oldName }, { author: name });
     }
     if (email && email !== user.email) {
@@ -71,9 +73,9 @@ export async function PUT(req: Request) {
       if (existingUser) {
         return NextResponse.json({ error: 'Email already in use' }, { status: 400 });
       }
-      user.email = email;
+      updates.email = email;
     }
-    if (roleColor) user.roleColor = roleColor;
+    if (roleColor) updates.roleColor = roleColor;
 
     // Password update logic
     if (newPassword) {
@@ -84,10 +86,13 @@ export async function PUT(req: Request) {
       if (!isMatch) {
         return NextResponse.json({ error: 'Incorrect current password' }, { status: 400 });
       }
-      user.password = await bcrypt.hash(newPassword, 10);
+      updates.password = await bcrypt.hash(newPassword, 10);
     }
 
-    await user.save();
+    if (Object.keys(updates).length > 0) {
+      await User.updateOne({ _id: user._id }, { $set: updates });
+    }
+
     revalidatePath('/dashboard');
     revalidatePath('/profile');
     revalidatePath('/setlist-roles');

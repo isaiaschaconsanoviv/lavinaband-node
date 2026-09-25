@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const ReactionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  type: { type: String, enum: ['LIKE', 'LOVE', 'AMEN', 'PRAY'], default: 'LIKE' },
+  type: { type: String, enum: ['LIKE', 'LOVE', 'AMEN', 'PRAY', 'FIRE', 'MUSIC', 'HAHA', 'PARTY', 'CHECK', 'EYES', 'SAD', 'CLAP'], default: 'LIKE' },
   createdAt: { type: Date, default: Date.now }
 }, { _id: false });
 

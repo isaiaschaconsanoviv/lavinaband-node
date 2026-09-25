@@ -15,7 +15,15 @@ const REACTION_EMOJIS: Record<string, string> = {
   LIKE: '👍',
   LOVE: '❤️',
   AMEN: '🙏',
-  PRAY: '🙌'
+  PRAY: '🙌',
+  FIRE: '🔥',
+  MUSIC: '🎵',
+  HAHA: '😂',
+  PARTY: '🎉',
+  CHECK: '✅',
+  EYES: '👀',
+  SAD: '😢',
+  CLAP: '👏'
 };
 
 export default function AnnouncementPage() {
@@ -291,8 +299,8 @@ export default function AnnouncementPage() {
           </div>
 
           {/* Reactions Section */}
-          <div className="bg-zinc-900/40 p-4 sm:p-6 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2 bg-zinc-800/50 p-1.5 rounded-full border border-zinc-700/50 backdrop-blur-sm">
+          <div className="bg-zinc-900/40 p-4 sm:p-6 border-t border-zinc-800 flex flex-col items-start gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-2 bg-zinc-800/50 p-2 rounded-2xl border border-zinc-700/50 backdrop-blur-sm w-full">
               {Object.keys(REACTION_EMOJIS).map(type => {
                 const isSelected = myReaction === type;
                 return (
@@ -330,8 +338,7 @@ export default function AnnouncementPage() {
           <div className="space-y-3">
             {[...announcement.reactions].sort((a, b) => new Date(b.createdAt || announcement.date || 0).getTime() - new Date(a.createdAt || announcement.date || 0).getTime()).map((r, index) => {
               const userName = typeof r.userId === 'object' && r.userId.name ? r.userId.name : 'Usuario';
-              const emojiMap: Record<string, string> = { LIKE: '👍', LOVE: '❤️', AMEN: '🙏', PRAY: '🙌' };
-              const emoji = emojiMap[r.type as keyof typeof emojiMap] || r.type;
+              const emoji = REACTION_EMOJIS[r.type as keyof typeof REACTION_EMOJIS] || r.type;
               return (
                 <div key={r._id || index} className="flex items-center gap-3 bg-zinc-800/20 p-3 rounded-lg border border-zinc-800/50">
                   <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center font-bold text-xs text-zinc-300">

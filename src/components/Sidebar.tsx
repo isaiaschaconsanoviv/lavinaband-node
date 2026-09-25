@@ -76,12 +76,9 @@ export default function Sidebar({ userRole, userName }: { userRole?: string; use
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
           <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-            La Viña
+            La Viña Band
           </h1>
         </div>
-        <button onClick={() => signOut({ callbackUrl: '/auth/login' })} className="text-xs font-medium text-red-400 bg-red-400/10 px-3 py-1.5 rounded-full">
-          Salir
-        </button>
       </div>
 
       {/* MOBILE BOTTOM NAVIGATION */}

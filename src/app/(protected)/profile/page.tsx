@@ -5,6 +5,7 @@ import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import ProfileForm from './ProfileForm';
 import PushNotificationManager from '@/components/PushNotificationManager';
+import MobileLogoutButton from './MobileLogoutButton';
 
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions);
@@ -49,6 +50,8 @@ export default async function ProfilePage() {
           </div>
         </div>
       </div>
+
+      <MobileLogoutButton />
     </div>
   );
 }

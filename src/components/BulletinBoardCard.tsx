@@ -283,7 +283,7 @@ export default function BulletinBoardCard({ initialAnnouncements, role, userName
               </div>
 
               {role === 'ADMIN' && (
-                <div className="absolute top-4 right-4 sm:relative sm:top-auto sm:right-auto flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity mt-4 sm:mt-0">
+                <div className="relative flex items-center justify-end sm:justify-start gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity mt-4 sm:mt-0 pt-3 sm:pt-0 border-t border-zinc-800/50 sm:border-0 w-full sm:w-auto">
                   <button
                     onClick={(e) => { e.stopPropagation(); handleEditInit(ann); }}
                     className="p-2 text-blue-400 bg-blue-900/20 hover:bg-blue-900/50 rounded-lg transition-colors"

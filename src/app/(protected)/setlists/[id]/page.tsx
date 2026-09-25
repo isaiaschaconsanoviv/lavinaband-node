@@ -110,6 +110,7 @@ export default function SetlistDetailPage() {
   const [setlist, setSetlist] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCollaboratorsModal, setShowCollaboratorsModal] = useState(false);
   const [allSongs, setAllSongs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSelector, setShowSelector] = useState(false);
@@ -217,7 +218,9 @@ export default function SetlistDetailPage() {
   const filteredSongs = allSongs.filter(s => s.title.toLowerCase().includes(searchTerm.toLowerCase()));
   
   const isCreator = setlist.createdBy?._id === currentUserId;
-  const canEdit = isAdmin || isCreator;
+  const isCollaborator = setlist.collaborators?.some((c: any) => c._id === currentUserId);
+  const canEdit = isAdmin || isCreator || isCollaborator;
+  const canManageCollaborators = isAdmin || isCreator;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
@@ -231,11 +234,27 @@ export default function SetlistDetailPage() {
             onBlur={() => saveSetlist(setlist)}
             disabled={!canEdit}
           />
-          {setlist.createdBy && setlist.createdBy.name && (
-            <p className="text-zinc-500 text-sm mb-4">
-              Creado por <span className="text-zinc-300">{setlist.createdBy.name}</span>
-            </p>
-          )}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            {setlist.createdBy && setlist.createdBy.name && (
+              <p className="text-zinc-500 text-sm flex items-center gap-2">
+                Creado por <span className="text-zinc-300 font-medium">{setlist.createdBy.name}</span>
+              </p>
+            )}
+            {setlist.collaborators && setlist.collaborators.length > 0 && (
+              <div className="flex items-center text-xs font-semibold text-zinc-400 bg-zinc-800/50 px-2 py-0.5 rounded-full border border-zinc-700/50">
+                +{setlist.collaborators.length}
+              </div>
+            )}
+            {canManageCollaborators && (
+              <button 
+                onClick={() => setShowCollaboratorsModal(true)} 
+                className="flex items-center justify-center w-6 h-6 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-500 text-zinc-400 hover:text-white transition-colors"
+                title="Gestionar colaboradores"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z" /></svg>
+              </button>
+            )}
+          </div>
           <div className="flex flex-wrap gap-4 items-center">
             <div className="flex items-center gap-2">
               <span className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Ensayo:</span>
@@ -268,10 +287,13 @@ export default function SetlistDetailPage() {
           </div>
         </div>
         {canEdit && (
-          <div className="flex gap-3 w-full sm:w-auto">
-            <button onClick={deleteSetlist} className="flex-1 sm:flex-none px-4 py-2 bg-red-900/40 hover:bg-red-600/80 text-red-400 hover:text-white border border-red-900/50 hover:border-red-600 rounded-lg font-medium transition-colors">
-              Eliminar
-            </button>
+          <div className="flex flex-wrap justify-end gap-3 w-full sm:w-auto">
+
+            {canManageCollaborators && (
+              <button onClick={deleteSetlist} className="flex-1 sm:flex-none px-4 py-2 bg-red-900/40 hover:bg-red-600/80 text-red-400 hover:text-white border border-red-900/50 hover:border-red-600 rounded-lg font-medium transition-colors">
+                Eliminar
+              </button>
+            )}
             <button onClick={() => setShowSelector(true)} className="flex-[2] sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-medium">
               + Añadir Canción
             </button>
@@ -382,6 +404,45 @@ export default function SetlistDetailPage() {
                   <div className="text-sm text-blue-400">{song.key}</div>
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCollaboratorsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
+            <button onClick={() => setShowCollaboratorsModal(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white">✕</button>
+            <h3 className="text-xl font-bold text-white mb-2">Gestionar Colaboradores</h3>
+            <p className="text-sm text-zinc-400 mb-4">Los colaboradores seleccionados podrán editar las canciones, fechas y asistencia de este setlist.</p>
+            <div className="space-y-2 overflow-y-auto custom-scrollbar pr-2">
+              {users.filter(u => u._id !== setlist.createdBy?._id).map(u => {
+                const isCollab = setlist.collaborators?.some((c: any) => c._id === u._id);
+                return (
+                  <div key={u._id} className="flex justify-between items-center p-3 bg-zinc-800/50 border border-zinc-700/50 rounded-lg">
+                    <span className="text-zinc-200 font-medium">{u.name}</span>
+                    <button 
+                      onClick={() => {
+                        let newCollabs = setlist.collaborators || [];
+                        if (isCollab) {
+                          newCollabs = newCollabs.filter((c: any) => c._id !== u._id);
+                        } else {
+                          newCollabs = [...newCollabs, u];
+                        }
+                        setSetlist({ ...setlist, collaborators: newCollabs });
+                        fetch(`/api/setlists/${params.id}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ collaborators: newCollabs.map((c: any) => c._id) })
+                        });
+                      }}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${isCollab ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'}`}
+                    >
+                      {isCollab ? 'Quitar' : 'Añadir'}
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>

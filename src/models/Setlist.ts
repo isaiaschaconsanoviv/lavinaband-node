@@ -14,6 +14,7 @@ const SetlistSchema = new mongoose.Schema({
     status: { type: String, enum: ['CONFIRMED', 'DECLINED', 'PENDING'], default: 'PENDING' }
   }],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  collaborators: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true });
 
 export default mongoose.models.Setlist || mongoose.model('Setlist', SetlistSchema);

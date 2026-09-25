@@ -264,7 +264,11 @@ export default function BulletinBoardCard({ initialAnnouncements, role, userName
                   <span className="text-zinc-500">{format(new Date(ann.date), "d MMM yyyy, HH:mm", { locale: es })}</span>
                   {ann.reactions && ann.reactions.length > 0 && (() => {
                     const uniqueReactions = Array.from(new Set(ann.reactions.map(r => r.type)));
-                    const emojiMap: Record<string, string> = { LIKE: '👍', LOVE: '❤️', AMEN: '🙏', PRAY: '🙌' };
+                    const emojiMap: Record<string, string> = {
+                      LIKE: '👍', LOVE: '❤️', AMEN: '🙏', PRAY: '🙌',
+                      FIRE: '🔥', MUSIC: '🎵', HAHA: '😂', PARTY: '🎉',
+                      CHECK: '✅', EYES: '👀', SAD: '😢', CLAP: '👏'
+                    };
                     return (
                       <>
                         <span className="text-zinc-600 hidden sm:inline">•</span>

@@ -45,9 +45,14 @@ export default async function SetListRolesPage() {
     weekOf: a.weekOf.toISOString(),
     thursdayDate: a.thursdayDate.toISOString(),
     sundayDate: a.sundayDate.toISOString(),
-    assignedUser: {
+    assignedUser: a.assignedUser ? {
       ...a.assignedUser,
       _id: a.assignedUser._id.toString()
+    } : {
+      _id: 'deleted',
+      name: 'Usuario Eliminado',
+      email: '',
+      roleColor: '#ef4444'
     }
   }));
 

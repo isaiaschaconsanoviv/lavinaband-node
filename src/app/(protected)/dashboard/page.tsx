@@ -102,11 +102,11 @@ export default async function DashboardPage() {
               <h3 className="text-lg font-semibold mb-4 text-blue-400">Rol Set List (Esta Semana)</h3>
               {activeAssignment ? (
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg text-zinc-200 border-2" style={{ borderColor: activeAssignment.assignedUser.roleColor || '#71717a', backgroundColor: `${activeAssignment.assignedUser.roleColor || '#71717a'}33` }}>
-                    {activeAssignment.assignedUser.name.charAt(0).toUpperCase()}
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg text-zinc-200 border-2" style={{ borderColor: activeAssignment.assignedUser?.roleColor || '#ef4444', backgroundColor: `${activeAssignment.assignedUser?.roleColor || '#ef4444'}33` }}>
+                    {activeAssignment.assignedUser?.name ? activeAssignment.assignedUser.name.charAt(0).toUpperCase() : '?'}
                   </div>
                   <div>
-                    <p className="font-bold text-zinc-100">{activeAssignment.assignedUser.name}</p>
+                    <p className="font-bold text-zinc-100">{activeAssignment.assignedUser?.name || 'Usuario Eliminado'}</p>
                     <p className="text-xs text-zinc-400 mt-1">Dom {format(new Date(activeAssignment.sundayDate), "d MMM", { locale: es })} - Jue {format(new Date(activeAssignment.thursdayDate), "d MMM", { locale: es })}</p>
                   </div>
                 </div>

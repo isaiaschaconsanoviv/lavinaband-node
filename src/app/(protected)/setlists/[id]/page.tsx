@@ -318,6 +318,7 @@ export default function SetlistDetailPage() {
         onClose={() => setSelectedLyricsSong(null)}
         role={(session?.user as any)?.role}
         hideKeyAndVideo={true}
+        enableCapo
       />
 
       <div className="grid md:grid-cols-3 gap-6">

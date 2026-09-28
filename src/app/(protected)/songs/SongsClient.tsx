@@ -294,8 +294,9 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
       <SongDetailsModal 
         song={selectedSong} 
         isOpen={!!selectedSong} 
-        onClose={() => setSelectedSong(null)} 
+        onClose={() => setSelectedSong(null)}
         role={role}
+        enableTranspose
       />
     </>
   );

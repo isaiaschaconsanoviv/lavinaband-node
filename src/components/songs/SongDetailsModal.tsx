@@ -3,6 +3,9 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import ConfirmModal from '@/components/ConfirmModal';
+import ChordTransposer from '@/components/songs/ChordTransposer';
+import CapoSelector from '@/components/songs/CapoSelector';
+import { detectKey, extractChords, keyName, parseKey, semitonesBetween, transposeChordLine } from '@/lib/chords';
 
 interface ParsedParagraph {
   header?: string;
@@ -67,7 +70,7 @@ function parseHolyrics(lyrics: string, formatting: string): ParsedParagraph[] | 
   }
 }
 
-export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyAndVideo = false }: { song: any; isOpen: boolean; onClose: () => void; role?: string; hideKeyAndVideo?: boolean }) {
+export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyAndVideo = false, enableTranspose = false, enableCapo = false }: { song: any; isOpen: boolean; onClose: () => void; role?: string; hideKeyAndVideo?: boolean; enableTranspose?: boolean; enableCapo?: boolean }) {
   const router = useRouter();
   const [youtubeLink, setYoutubeLink] = useState('');
   const [isEditingYoutube, setIsEditingYoutube] = useState(false);
@@ -83,6 +86,12 @@ export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyA
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingMufl, setIsUploadingMufl] = useState(false);
 
+  // Transposición de acordes (en semitonos, 0 = tono guardado) y posición del capo
+  const [semitones, setSemitones] = useState(0);
+  const [capo, setCapo] = useState(0);
+  // Tono recién guardado desde el transpositor (mientras la lista se actualiza)
+  const [savedKey, setSavedKey] = useState<string | null>(null);
+
   useEffect(() => {
     if (song) {
       setYoutubeLink(song.youtubeLink || '');
@@ -95,12 +104,30 @@ export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyA
     }
     setIsEditingYoutube(false);
     setIsEditingMeta(false);
+    setSemitones(0);
+    setCapo(0);
+    setSavedKey(null);
   }, [song]);
 
   const parsedContent = useMemo(() => {
     if (!song) return null;
     return parseHolyrics(song.lyrics, song.formatting);
   }, [song]);
+
+  // Tono en el que están escritos los acordes, analizado a partir de ellos
+  const chordKey = useMemo(() => {
+    if (!parsedContent) return null;
+    const chordLines = parsedContent.flatMap(para => para.lines.map(line => line.chord));
+    return detectKey(extractChords(chordLines));
+  }, [parsedContent]);
+
+  // Todos ven los acordes en el tono guardado de la canción; si no hay uno
+  // válido, se usa el tono en el que están escritos los acordes.
+  const currentKey = savedKey ?? song?.key;
+  const baseKey = parseKey(currentKey) ?? chordKey;
+  const baseOffset = chordKey && baseKey ? semitonesBetween(chordKey, baseKey) : 0;
+  const isTransposed = enableTranspose && semitones !== 0;
+  const displayOffset = (((baseOffset + (isTransposed ? semitones : 0) - (enableCapo ? capo : 0)) % 12) + 12) % 12;
 
   if (!isOpen || !song) return null;
 
@@ -157,6 +184,33 @@ export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyA
       }
     } catch (error) {
       toast.error('Error de red al actualizar');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveKey = async () => {
+    if (!baseKey) return;
+    const newKey = keyName(baseKey, semitones);
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/songs/${song._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: newKey })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Tono guardado: ${newKey}`);
+        setSavedKey(newKey);
+        setSemitones(0);
+        setMetaInput(prev => ({ ...prev, key: newKey }));
+        router.refresh();
+      } else {
+        toast.error(data.error || 'Error al guardar el tono');
+      }
+    } catch (error) {
+      toast.error('Error de red al guardar el tono');
     } finally {
       setIsSaving(false);
     }
@@ -272,10 +326,16 @@ export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyA
         <div className={`flex-1 ${hideKeyAndVideo ? 'flex flex-col overflow-hidden' : 'p-6 overflow-y-auto space-y-8'}`}>
           {!isEditingMeta && !hideKeyAndVideo && (
             <div className="flex flex-wrap gap-4">
-              {song.key && (
+              {isTransposed && baseKey ? (
+                <div className="px-4 py-2 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+                  <span className="block text-xs text-purple-400 font-medium uppercase">Tono (transpuesto)</span>
+                  <span className="text-lg text-purple-100 font-bold font-mono">{keyName(baseKey, semitones)}</span>
+                  <span className="ml-2 text-xs text-zinc-500 font-mono">orig. {keyName(baseKey)}</span>
+                </div>
+              ) : currentKey && (
                 <div className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl">
                   <span className="block text-xs text-blue-400 font-medium uppercase">Tono</span>
-                  <span className="text-lg text-blue-100 font-bold font-mono">{song.key}</span>
+                  <span className="text-lg text-blue-100 font-bold font-mono">{currentKey}</span>
                 </div>
               )}
               {song.tempo && (
@@ -287,13 +347,30 @@ export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyA
             </div>
           )}
 
-          <div className={hideKeyAndVideo ? 'flex-1 flex flex-col min-h-0' : 'grid md:grid-cols-2 gap-8'}>
-            <div className={hideKeyAndVideo ? 'flex-1 flex flex-col min-h-0' : 'space-y-3'}>
+          <div className={hideKeyAndVideo ? 'flex-1 flex flex-col min-h-0' : 'grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-8'}>
+            {/* min-w-0: las líneas largas de acordes se desplazan dentro de su recuadro en vez de ensanchar la columna */}
+            <div className={hideKeyAndVideo ? 'flex-1 flex flex-col min-h-0 min-w-0' : 'space-y-3 min-w-0'}>
               {!hideKeyAndVideo && (
                 <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   Letra y Acordes
                 </h3>
+              )}
+
+              {enableTranspose && chordKey && baseKey && (
+                <ChordTransposer
+                  baseKey={baseKey}
+                  semitones={semitones}
+                  onChange={setSemitones}
+                  onSave={role === 'ADMIN' || role === 'MEMBER' ? handleSaveKey : undefined}
+                  isSaving={isSaving}
+                />
+              )}
+
+              {enableCapo && chordKey && baseKey && (
+                <div className={hideKeyAndVideo ? 'px-6 sm:px-8 pt-4 pb-3 border-b border-zinc-800 bg-zinc-950 shrink-0' : ''}>
+                  <CapoSelector baseKey={baseKey} capo={capo} onChange={setCapo} />
+                </div>
               )}
               
               <div className={`bg-zinc-950 custom-scrollbar flex flex-col ${hideKeyAndVideo ? 'flex-1 overflow-y-auto p-6 sm:p-8' : 'rounded-xl p-5 border border-zinc-800/50 min-h-[300px] max-h-[600px] overflow-y-auto'}`}>
@@ -312,7 +389,7 @@ export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyA
                             <div key={j} className="flex flex-col">
                               {line.chord.trim() && (
                                 <div className="text-purple-400 font-bold whitespace-pre min-h-[1.25rem]">
-                                  {line.chord.replace(/÷/g, '\n')}
+                                  {transposeChordLine(line.chord, displayOffset).replace(/÷/g, '\n')}
                                 </div>
                               )}
                               <div className="text-zinc-200 whitespace-pre min-h-[1.25rem]">

@@ -11,12 +11,17 @@ interface CustomSelectProps {
   name: string;
   options: Option[];
   defaultValue?: string;
+  // Valor controlado (opcional): úsalo cuando el valor también cambie desde fuera del select
+  value?: string;
   onChange?: (value: string) => void;
+  // Clases extra para el contenedor (por ejemplo, para reemplazar el ancho mínimo)
+  className?: string;
 }
 
-export default function CustomSelect({ name, options, defaultValue, onChange }: CustomSelectProps) {
+export default function CustomSelect({ name, options, defaultValue, value: controlledValue, onChange, className = 'min-w-[200px]' }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [value, setValue] = useState(defaultValue || (options[0]?.value ?? ''));
+  const [internalValue, setValue] = useState(defaultValue || (options[0]?.value ?? ''));
+  const value = controlledValue ?? internalValue;
   const selectRef = useRef<HTMLDivElement>(null);
 
   const selectedOption = options.find((opt) => opt.value === value) || options[0];
@@ -41,7 +46,7 @@ export default function CustomSelect({ name, options, defaultValue, onChange }: 
   };
 
   return (
-    <div className="relative w-full min-w-[200px]" ref={selectRef}>
+    <div className={`relative w-full ${className}`} ref={selectRef}>
       {/* Hidden input for HTML form submission */}
       <input type="hidden" name={name} value={value} />
 

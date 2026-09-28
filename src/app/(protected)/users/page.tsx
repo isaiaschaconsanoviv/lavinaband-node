@@ -16,7 +16,8 @@ export default async function UsersPage() {
   }
 
   await dbConnect();
-  const users = await User.find({}).sort({ createdAt: -1 }).lean();
+  // Nunca enviar al navegador el hash de la contraseña ni las suscripciones push
+  const users = await User.find({}).select('-password -pushSubscriptions').sort({ createdAt: -1 }).lean();
   
   // Serializar los usuarios para pasarlos al Client Component
   const serializedUsers = users.map(u => ({

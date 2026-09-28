@@ -5,6 +5,7 @@ import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import ProfileForm from './ProfileForm';
 import RoleForm from './RoleForm';
+import InEarForm from './InEarForm';
 import PushNotificationManager from '@/components/PushNotificationManager';
 import MobileLogoutButton from './MobileLogoutButton';
 
@@ -41,6 +42,19 @@ export default async function ProfilePage() {
               <RoleForm
                 initialRoleColor={user.roleColor || '#71717a'}
                 initialSetListRoleStatus={user.setListRoleStatus || 'NONE'}
+              />
+            </div>
+          )}
+
+          {user.role !== 'GUEST' && (
+            <div className="bg-zinc-900/60 backdrop-blur border border-zinc-700/50 rounded-xl p-6 shadow-lg">
+              <h3 className="text-lg font-semibold mb-4 text-sky-400">In-Ears</h3>
+              <InEarForm
+                initialFlags={{
+                  isVocalist: !!user.isVocalist,
+                  instruments: user.instruments || [],
+                  isSoundEngineer: !!user.isSoundEngineer,
+                }}
               />
             </div>
           )}

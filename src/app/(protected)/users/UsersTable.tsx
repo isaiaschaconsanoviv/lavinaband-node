@@ -5,6 +5,13 @@ import toast from 'react-hot-toast';
 import { updateUserRole } from "@/app/actions/user.actions";
 import CustomSelect from '@/components/ui/CustomSelect';
 import DeleteUserButton from "./DeleteUserButton";
+import InEarFlagsButton from "./InEarFlagsButton";
+
+const getInEarFlags = (user: any) => ({
+  isVocalist: !!user.isVocalist,
+  instruments: user.instruments || [],
+  isSoundEngineer: !!user.isSoundEngineer,
+});
 
 export default function UsersTable({ users, currentUserId }: { users: any[], currentUserId: string }) {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
@@ -80,7 +87,11 @@ export default function UsersTable({ users, currentUserId }: { users: any[], cur
                         Guardar
                       </button>
                     </form>
-                    
+
+                    {user.role !== 'GUEST' && (
+                      <InEarFlagsButton userId={user._id} userName={user.name} initialFlags={getInEarFlags(user)} />
+                    )}
+
                     {currentUserId !== user._id && currentUserId !== user.email && (
                       <DeleteUserButton userId={user._id} userName={user.name} />
                     )}
@@ -114,7 +125,14 @@ export default function UsersTable({ users, currentUserId }: { users: any[], cur
                           </button>
                         </form>
                       </div>
-                      
+
+                      {user.role !== 'GUEST' && (
+                        <div className="border-t border-zinc-700/50 pt-3">
+                          <span className="text-xs text-zinc-500 uppercase font-semibold mb-2 block">In-Ears:</span>
+                          <InEarFlagsButton userId={user._id} userName={user.name} initialFlags={getInEarFlags(user)} fullWidth />
+                        </div>
+                      )}
+
                       {currentUserId !== user._id && currentUserId !== user.email && (
                         <div className="border-t border-zinc-700/50 pt-3 flex justify-between items-center">
                           <span className="text-xs text-zinc-500 uppercase font-semibold">Eliminar:</span>

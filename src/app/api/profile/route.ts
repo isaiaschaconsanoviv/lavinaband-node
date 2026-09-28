@@ -7,6 +7,7 @@ import User from '@/models/User';
 import Announcement from '@/models/Announcement';
 import bcrypt from 'bcryptjs';
 import webpush from 'web-push';
+import { INSTRUMENTS } from '@/lib/inEars';
 
 if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
@@ -25,7 +26,7 @@ export async function PUT(req: Request) {
 
     const data = await req.json();
 
-    const { name, email, currentPassword, newPassword, roleColor, requestSetListRole, optOutSetListRole } = data;
+    const { name, email, currentPassword, newPassword, roleColor, requestSetListRole, optOutSetListRole, isVocalist, instruments, isSoundEngineer } = data;
 
     await dbConnect();
     const user = await User.findOne({ email: session.user.email });
@@ -78,6 +79,15 @@ export async function PUT(req: Request) {
     }
     if (roleColor) updates.roleColor = roleColor;
 
+    // Marcas de In-Ears (los invitados no participan)
+    if (user.role !== 'GUEST') {
+      if (typeof isVocalist === 'boolean') updates.isVocalist = isVocalist;
+      if (typeof isSoundEngineer === 'boolean') updates.isSoundEngineer = isSoundEngineer;
+      if (Array.isArray(instruments)) {
+        updates.instruments = INSTRUMENTS.filter(i => instruments.includes(i));
+      }
+    }
+
     // Password update logic
     if (newPassword) {
       if (!currentPassword) {
@@ -97,6 +107,7 @@ export async function PUT(req: Request) {
     revalidatePath('/dashboard');
     revalidatePath('/profile');
     revalidatePath('/setlist-roles');
+    revalidatePath('/in-ears');
     return NextResponse.json({ success: true, message: 'Profile updated' });
   } catch (error: any) {
     console.error('Profile update error:', error);

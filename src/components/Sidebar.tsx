@@ -11,6 +11,7 @@ export default function Sidebar({ userRole, userName }: { userRole?: string; use
     { name: 'Canciones', path: '/songs', icon: '🎵' },
     { name: 'Set Lists', path: '/setlists', icon: '📋' },
     { name: 'Rol', path: '/setlist-roles', icon: '📅' },
+    { name: 'In-Ears', path: '/in-ears', icon: '🎧' },
     { name: 'Perfil', path: '/profile', icon: '👤' },
   ];
 

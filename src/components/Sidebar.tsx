@@ -93,17 +93,17 @@ export default function Sidebar({ userRole, userName }: { userRole?: string; use
           {navItems.map((item) => {
             const isActive = pathname.startsWith(item.path);
             return (
-              <li key={item.path} className="flex-1">
+              <li key={item.path} className="flex-1 min-w-0">
                 <Link
                   href={item.path}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all ${
+                  className={`flex flex-col items-center justify-center text-center px-0.5 py-2 rounded-xl transition-all ${
                     isActive
                       ? 'text-blue-400 scale-105'
                       : 'text-zinc-500 hover:text-zinc-300'
                   }`}
                 >
                   <span className={`text-xl mb-1 ${isActive ? 'drop-shadow-md' : 'opacity-70'}`}>{item.icon}</span>
-                  <span className="text-[10px] font-medium">{item.name}</span>
+                  <span className="text-[10px] font-medium leading-tight text-center">{item.name}</span>
                 </Link>
               </li>
             );

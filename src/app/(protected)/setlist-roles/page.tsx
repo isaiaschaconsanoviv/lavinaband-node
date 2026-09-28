@@ -10,6 +10,7 @@ import RoleControls from './RoleControls';
 import ConfirmTurnButton from './ConfirmTurnButton';
 import ChangeAssigneeButton from './ChangeAssigneeButton';
 import CompleteTurnButton from './CompleteTurnButton';
+import DeleteAssignmentButton from './DeleteAssignmentButton';
 
 export default async function SetListRolesPage() {
   const session = await getServerSession(authOptions);
@@ -55,6 +56,18 @@ export default async function SetListRolesPage() {
       roleColor: '#ef4444'
     }
   }));
+
+  // Las fechas del rol se guardan como días de calendario (medianoche UTC), así que
+  // se comparan como 'YYYY-MM-DD' contra el día de hoy en la zona horaria de la banda.
+  const BAND_TIMEZONE = 'America/Tijuana';
+  const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: BAND_TIMEZONE }).format(new Date());
+  const toDayKey = (iso: string, offsetDays = 0) =>
+    new Date(new Date(iso).getTime() + offsetDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  // El Jueves es la fecha más lejana del turno: una vez que pasa, el turno se archiva.
+  const activeAssignments = assignments.filter(a => toDayKey(a.thursdayDate) >= todayKey);
+  // Mostrar primero los turnos archivados más recientes
+  const archivedAssignments = assignments.filter(a => toDayKey(a.thursdayDate) < todayKey).reverse();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -117,16 +130,18 @@ export default async function SetListRolesPage() {
                 {isAdmin && <p className="text-sm text-zinc-600">Inicia la rotación para generar las próximas semanas.</p>}
               </div>
             ) : (
+              <div className="space-y-8">
+              {activeAssignments.length === 0 ? (
+                <div className="text-center py-12 border-2 border-dashed border-zinc-800 rounded-xl bg-zinc-900/30">
+                  <p className="text-zinc-500 mb-2">No hay turnos próximos.</p>
+                  {isAdmin && <p className="text-sm text-zinc-600">Genera más semanas para continuar la rotación.</p>}
+                </div>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {assignments.map((assignment: any) => {
+                {activeAssignments.map((assignment: any) => {
                   const weekStart = new Date(assignment.weekOf);
-                  const thursday = new Date(assignment.thursdayDate);
-                  const startOfTurn = new Date(thursday.getTime() - 6 * 24 * 60 * 60 * 1000); // Viernes anterior
-                  const endOfTurn = new Date(thursday.getTime() + 1 * 24 * 60 * 60 * 1000); // Viernes
-
-                  const now = new Date();
-                  const isCurrentWeek = now >= startOfTurn && now < endOfTurn;
-                  const isPast = now >= endOfTurn;
+                  // El turno se muestra como actual desde el Viernes anterior hasta su Jueves
+                  const isCurrentWeek = toDayKey(assignment.thursdayDate, -6) <= todayKey;
                   const isAssignedToMe = (session?.user as any)?.id === assignment.assignedUser._id || session?.user?.email === assignment.assignedUser.email;
                   
                   return (
@@ -134,10 +149,8 @@ export default async function SetListRolesPage() {
                       key={assignment._id} 
                       className={`relative p-5 rounded-xl border transition-all ${
                         isCurrentWeek 
-                          ? 'bg-blue-900/10 border-blue-500/30 shadow-lg shadow-blue-500/5' 
-                          : isPast 
-                            ? 'bg-zinc-900/30 border-zinc-800 opacity-60' 
-                            : 'bg-zinc-900/60 border-zinc-700/50 hover:border-zinc-600'
+                          ? 'bg-blue-900/10 border-blue-500/30 shadow-lg shadow-blue-500/5'
+                          : 'bg-zinc-900/60 border-zinc-700/50 hover:border-zinc-600'
                       }`}
                     >
                       {isCurrentWeek && (
@@ -146,10 +159,18 @@ export default async function SetListRolesPage() {
                         </span>
                       )}
                       
-                      <p className="text-sm text-zinc-400 mb-4 flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        Semana del {weekStart.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                      </p>
+                      <div className="mb-4 flex items-center justify-between gap-2">
+                        <p className="text-sm text-zinc-400 flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                          Semana del {weekStart.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}
+                        </p>
+                        {isAdmin && (
+                          <DeleteAssignmentButton
+                            assignmentId={assignment._id}
+                            description={`${assignment.assignedUser.name} (semana del ${weekStart.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })})`}
+                          />
+                        )}
+                      </div>
                       
                       <div className="flex items-center gap-3 mb-4">
                         <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg text-zinc-200 border-2" style={{ borderColor: assignment.assignedUser.roleColor || '#71717a', backgroundColor: `${assignment.assignedUser.roleColor || '#71717a'}33` }}>
@@ -167,11 +188,11 @@ export default async function SetListRolesPage() {
                       <div className="pt-4 border-t border-zinc-800/60 flex flex-col gap-2">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-zinc-500 font-medium uppercase">Domingo</span>
-                          <span className="text-zinc-300 font-semibold">{new Date(assignment.sundayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+                          <span className="text-zinc-300 font-semibold">{new Date(assignment.sundayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</span>
                         </div>
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-zinc-500 font-medium uppercase">Jueves</span>
-                          <span className="text-zinc-300 font-semibold">{new Date(assignment.thursdayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+                          <span className="text-zinc-300 font-semibold">{new Date(assignment.thursdayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</span>
                         </div>
                       </div>
 
@@ -195,6 +216,59 @@ export default async function SetListRolesPage() {
                     </div>
                   );
                 })}
+              </div>
+              )}
+
+              {archivedAssignments.length > 0 && (
+                <details className="group pt-6 border-t border-zinc-800/50">
+                  <summary className="w-full flex items-center justify-between p-4 bg-zinc-900/30 hover:bg-zinc-800/50 border border-zinc-800 rounded-xl transition-colors text-left cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-medium text-zinc-300">Archivo Histórico</h3>
+                        <p className="text-sm text-zinc-500">{archivedAssignments.length} turnos anteriores</p>
+                      </div>
+                    </div>
+                    <svg className="w-5 h-5 text-zinc-500 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </summary>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 animate-in slide-in-from-top-4 fade-in duration-300">
+                    {archivedAssignments.map((assignment) => (
+                      <div key={assignment._id} className="p-5 rounded-xl border bg-zinc-900/20 border-zinc-800 opacity-80">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <p className="text-sm text-zinc-500">
+                            Semana del {new Date(assignment.weekOf).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}
+                          </p>
+                          {isAdmin && (
+                            <DeleteAssignmentButton
+                              assignmentId={assignment._id}
+                              description={`${assignment.assignedUser.name} (semana del ${new Date(assignment.weekOf).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })})`}
+                            />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-zinc-300 border-2" style={{ borderColor: assignment.assignedUser.roleColor || '#71717a', backgroundColor: `${assignment.assignedUser.roleColor || '#71717a'}33` }}>
+                            {assignment.assignedUser.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium text-zinc-300">{assignment.assignedUser.name}</p>
+                            <span
+                              className={`inline-block mt-1 px-2 py-0.5 border rounded-md text-[10px] font-bold uppercase tracking-wider ${getStatusColor(assignment.status)}`}
+                              dangerouslySetInnerHTML={{ __html: getStatusLabel(assignment.status) }}
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-3 flex gap-4 text-xs text-zinc-600">
+                          <span>Dom {new Date(assignment.sundayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</span>
+                          <span>Jue {new Date(assignment.thursdayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
               </div>
             )}
           </div>

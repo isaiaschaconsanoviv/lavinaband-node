@@ -64,12 +64,6 @@ export default async function DashboardPage() {
         </p>
       </header>
 
-      {role === 'GUEST' && (
-        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-4 rounded-lg">
-          <strong>Aviso:</strong> Tu cuenta está en modo invitado. No podrás ver información sensible hasta que un administrador apruebe tu acceso.
-        </div>
-      )}
-
       <PushNotificationManager hideWhenSubscribed={true} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -107,7 +101,7 @@ export default async function DashboardPage() {
                   </div>
                   <div>
                     <p className="font-bold text-zinc-100">{activeAssignment.assignedUser?.name || 'Usuario Eliminado'}</p>
-                    <p className="text-xs text-zinc-400 mt-1">Dom {format(new Date(activeAssignment.sundayDate), "d MMM", { locale: es })} - Jue {format(new Date(activeAssignment.thursdayDate), "d MMM", { locale: es })}</p>
+                    <p className="text-xs text-zinc-400 mt-1">Dom {new Date(activeAssignment.sundayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })} - Jue {new Date(activeAssignment.thursdayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</p>
                   </div>
                 </div>
               ) : (

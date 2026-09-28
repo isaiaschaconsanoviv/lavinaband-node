@@ -265,9 +265,9 @@ export default function BulletinBoardCard({ initialAnnouncements, role, userName
                   {ann.reactions && ann.reactions.length > 0 && (() => {
                     const uniqueReactions = Array.from(new Set(ann.reactions.map(r => r.type)));
                     const emojiMap: Record<string, string> = {
-                      LIKE: '👍', LOVE: '❤️', AMEN: '🙏', PRAY: '🙌',
-                      FIRE: '🔥', MUSIC: '🎵', HAHA: '😂', PARTY: '🎉',
-                      CHECK: '✅', EYES: '👀', SAD: '😢', CLAP: '👏'
+                      LIKE: '👍', CHECK: '✅', CLAP: '👏', LOVE: '❤️',
+                      FIRE: '🔥', PARTY: '🎉', HAHA: '😂', AMEN: '🙏',
+                      PRAY: '🙌', EYES: '👀', SAD: '😢', ANGRY: '😠'
                     };
                     return (
                       <>

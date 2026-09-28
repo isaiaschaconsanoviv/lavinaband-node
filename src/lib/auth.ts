@@ -46,6 +46,12 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = (user as any).role;
+      } else if (token.id) {
+        // Leer el tipo de cuenta actual para que los cambios hechos por un admin
+        // apliquen sin tener que cerrar sesión y volver a iniciar
+        await dbConnect();
+        const dbUser = await User.findById(token.id).select('role').lean<{ role: string }>();
+        if (dbUser) token.role = dbUser.role;
       }
       return token;
     },

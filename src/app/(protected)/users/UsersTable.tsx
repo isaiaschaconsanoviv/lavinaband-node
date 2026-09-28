@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { updateUserRole } from "@/app/actions/user.actions";
 import CustomSelect from '@/components/ui/CustomSelect';
 import DeleteUserButton from "./DeleteUserButton";
@@ -8,9 +9,20 @@ import DeleteUserButton from "./DeleteUserButton";
 export default function UsersTable({ users, currentUserId }: { users: any[], currentUserId: string }) {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
 
-  const handleRoleChange = async (userId: string, formData: FormData) => {
+  const roleLabels: Record<string, string> = {
+    GUEST: 'Invitado',
+    MEMBER: 'Miembro',
+    ADMIN: 'Administrador',
+  };
+
+  const handleRoleChange = async (userId: string, userName: string, formData: FormData) => {
     const newRole = formData.get('role') as string;
-    await updateUserRole(userId, newRole);
+    try {
+      await updateUserRole(userId, newRole);
+      toast.success(`Se cambió el rol de ${userName} a ${roleLabels[newRole] || newRole}`);
+    } catch {
+      toast.error(`No se pudo cambiar el rol de ${userName}`);
+    }
   };
 
   return (
@@ -54,7 +66,7 @@ export default function UsersTable({ users, currentUserId }: { users: any[], cur
                 </td>
                 <td className="hidden md:table-cell p-4">
                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <form action={handleRoleChange.bind(null, user._id)} className="flex items-center gap-2">
+                    <form action={handleRoleChange.bind(null, user._id, user.name)} className="flex items-center gap-2">
                       <CustomSelect 
                         name="role" 
                         defaultValue={user.role}
@@ -87,7 +99,7 @@ export default function UsersTable({ users, currentUserId }: { users: any[], cur
                       
                       <div className="border-t border-zinc-700/50 pt-3">
                         <span className="text-xs text-zinc-500 uppercase font-semibold mb-2 block">Cambiar Rol:</span>
-                        <form action={handleRoleChange.bind(null, user._id)} className="flex flex-col gap-2">
+                        <form action={handleRoleChange.bind(null, user._id, user.name)} className="flex flex-col gap-2">
                           <CustomSelect 
                             name="role" 
                             defaultValue={user.role}

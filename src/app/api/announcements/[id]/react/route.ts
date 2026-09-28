@@ -10,6 +10,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if ((session.user as any).role === 'GUEST') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     
     const userId = (session.user as any).id;
     const body = await req.json();

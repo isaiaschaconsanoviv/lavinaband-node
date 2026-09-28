@@ -7,6 +7,7 @@ import '@/models/Song';
 import '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { rejectGuests } from '@/lib/guards';
 import webpush from 'web-push';
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -19,6 +20,8 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await rejectGuests();
+    if (denied) return denied;
     await dbConnect();
     const setlist = await Setlist.findById((await params).id)
       .populate('songs.song')

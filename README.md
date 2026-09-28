@@ -10,7 +10,7 @@ Una plataforma web de gestión moderna e integral diseñada específicamente par
 - **Lector Bíblico Integrado**: Lector de la Biblia a pantalla completa dentro de la misma aplicación. Permite leer los capítulos semanales sin salir del flujo de trabajo. Soporta múltiples versiones (NTV, RV60, NVI, PDT) respetando la estructura de títulos, subtítulos y números capitulares.
 - **Sistema de Roles y Autenticación**:
   - `ADMIN`: Control total para crear, editar o eliminar canciones, setlists y configuraciones globales de la banda.
-  - `MUSICIAN`: Acceso de solo lectura al repertorio y setlists para estudiar y prepararse.
+  - `MEMBER`: Acceso de solo lectura al repertorio y setlists para estudiar y prepararse.
   - `GUEST`: Nivel de invitado (por defecto al registrarse) que requiere aprobación de un administrador para ver información sensible.
 
 ## 💻 Stack Tecnológico

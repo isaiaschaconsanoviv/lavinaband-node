@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    if ((session.user as any).role === 'GUEST') return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     await dbConnect();
     const settings = await Setting.find({});

@@ -6,13 +6,18 @@ import { signOut } from 'next-auth/react';
 export default function Sidebar({ userRole, userName }: { userRole?: string; userName: string }) {
   const pathname = usePathname();
 
-  const navItems = [
+  const allNavItems = [
     { name: 'Inicio', path: '/dashboard', icon: '🏠' },
     { name: 'Canciones', path: '/songs', icon: '🎵' },
     { name: 'Set Lists', path: '/setlists', icon: '📋' },
     { name: 'Rol', path: '/setlist-roles', icon: '📅' },
     { name: 'Perfil', path: '/profile', icon: '👤' },
   ];
+
+  // Los invitados solo pueden ver el listado de canciones y su perfil
+  const navItems = userRole === 'GUEST'
+    ? allNavItems.filter(item => item.path === '/songs' || item.path === '/profile')
+    : allNavItems;
 
   if (userRole === 'ADMIN') {
     navItems.push({ name: 'Usuarios', path: '/users', icon: '👥' });

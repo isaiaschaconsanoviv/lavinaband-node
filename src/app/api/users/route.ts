@@ -8,6 +8,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    if ((session.user as any).role === 'GUEST') return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     await dbConnect();
     const users = await User.find({}).select('name email role').lean();

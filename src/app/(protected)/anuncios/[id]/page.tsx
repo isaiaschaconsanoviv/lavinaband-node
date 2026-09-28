@@ -11,19 +11,20 @@ import toast from 'react-hot-toast';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
 
+// Ordenadas por grupo: aprobación, entusiasmo, fe, atención y negativas
 const REACTION_EMOJIS: Record<string, string> = {
   LIKE: '👍',
+  CHECK: '✅',
+  CLAP: '👏',
   LOVE: '❤️',
+  FIRE: '🔥',
+  PARTY: '🎉',
+  HAHA: '😂',
   AMEN: '🙏',
   PRAY: '🙌',
-  FIRE: '🔥',
-  MUSIC: '🎵',
-  HAHA: '😂',
-  PARTY: '🎉',
-  CHECK: '✅',
   EYES: '👀',
   SAD: '😢',
-  CLAP: '👏'
+  ANGRY: '😠'
 };
 
 export default function AnnouncementPage() {

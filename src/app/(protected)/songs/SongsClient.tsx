@@ -71,14 +71,6 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
     return <span className="inline-block ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>;
   };
 
-  if (role === 'GUEST') {
-    return (
-      <div className="bg-zinc-900/60 p-6 rounded-xl border border-zinc-700/50 text-center text-zinc-400 mt-6">
-        No tienes permisos para ver las canciones. Solicita acceso a un administrador.
-      </div>
-    );
-  }
-
   return (
     <>
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 mt-2">
@@ -101,15 +93,23 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
               <ImportMuflButton />
             </>
           )}
-          <button 
-            onClick={() => setIsSuggestModalOpen(true)}
-            className="flex-1 md:flex-none px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(37,99,235,0.2)] hover:shadow-[0_0_25px_rgba(37,99,235,0.4)] flex items-center justify-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-            Sugerir Canción
-          </button>
+          {role !== 'GUEST' && (
+            <button
+              onClick={() => setIsSuggestModalOpen(true)}
+              className="flex-1 md:flex-none px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(37,99,235,0.2)] hover:shadow-[0_0_25px_rgba(37,99,235,0.4)] flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              Sugerir Canción
+            </button>
+          )}
         </div>
       </header>
+
+      {role === 'GUEST' && (
+        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-4 rounded-lg mb-6">
+          <strong>Aviso:</strong> Tu cuenta está en modo invitado. Solo puedes ver el listado de canciones y tu perfil hasta que un administrador apruebe tu acceso.
+        </div>
+      )}
 
       {/* Search Bar */}
       <div className="relative mb-6">

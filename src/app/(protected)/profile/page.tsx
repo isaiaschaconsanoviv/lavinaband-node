@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import ProfileForm from './ProfileForm';
+import RoleForm from './RoleForm';
 import PushNotificationManager from '@/components/PushNotificationManager';
 import MobileLogoutButton from './MobileLogoutButton';
 
@@ -30,12 +31,20 @@ export default async function ProfilePage() {
           <ProfileForm 
             initialName={user.name} 
             initialEmail={user.email} 
-            initialRoleColor={user.roleColor || '#71717a'} 
-            initialSetListRoleStatus={user.setListRoleStatus || 'NONE'}
           />
         </div>
 
         <div className="space-y-6">
+          {user.role !== 'GUEST' && (
+            <div className="bg-zinc-900/60 backdrop-blur border border-zinc-700/50 rounded-xl p-6 shadow-lg">
+              <h3 className="text-lg font-semibold mb-4 text-emerald-400">Rol</h3>
+              <RoleForm
+                initialRoleColor={user.roleColor || '#71717a'}
+                initialSetListRoleStatus={user.setListRoleStatus || 'NONE'}
+              />
+            </div>
+          )}
+
           <div className="bg-zinc-900/60 backdrop-blur border border-zinc-700/50 rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-semibold mb-4 text-purple-400">Preferencias de Notificaciones</h3>
             <PushNotificationManager />
@@ -44,7 +53,7 @@ export default async function ProfilePage() {
           <div className="bg-zinc-900/60 backdrop-blur border border-zinc-700/50 rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-semibold mb-4 text-zinc-300">Resumen de Cuenta</h3>
             <ul className="space-y-2 text-sm text-zinc-400">
-              <li><strong className="text-zinc-300">Rol:</strong> {user.role}</li>
+              <li><strong className="text-zinc-300">Tipo de cuenta:</strong> {user.role}</li>
               <li><strong className="text-zinc-300">Fecha de registro:</strong> {new Date(user.createdAt).toLocaleDateString('es')}</li>
             </ul>
           </div>

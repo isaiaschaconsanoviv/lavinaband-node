@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { rejectGuests } from '@/lib/guards';
 import dbConnect from '@/lib/mongodb';
 import Announcement from '@/models/Announcement';
 import User from '@/models/User';
@@ -16,6 +17,8 @@ webpush.setVapidDetails(
 
 export async function GET() {
   try {
+    const denied = await rejectGuests();
+    if (denied) return denied;
     await dbConnect();
     const announcements = await Announcement.find().sort({ date: -1 });
     return NextResponse.json(announcements);

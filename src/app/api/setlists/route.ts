@@ -5,9 +5,12 @@ import Setlist from '@/models/Setlist';
 import '@/models/Song';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { rejectGuests } from '@/lib/guards';
 
 export async function GET(req: NextRequest) {
   try {
+    const denied = await rejectGuests();
+    if (denied) return denied;
     await dbConnect();
     const setlists = await Setlist.find().sort({ date: 1 }).populate('songs.song');
     return NextResponse.json({ success: true, data: setlists });

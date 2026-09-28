@@ -3,12 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { rejectGuests } from '@/lib/guards';
 import dbConnect from '@/lib/mongodb';
 import Announcement from '@/models/Announcement';
 import '@/models/User';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await rejectGuests();
+    if (denied) return denied;
     await dbConnect();
     const announcement = await Announcement.findById((await params).id).populate('reactions.userId', 'name');
     if (!announcement) return NextResponse.json({ error: 'Not found' }, { status: 404 });

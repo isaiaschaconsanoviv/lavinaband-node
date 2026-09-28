@@ -41,10 +41,29 @@ export async function toggleRoleRotation() {
   return { isActive: settings.isActive };
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Devuelve los usuarios asignados a la semana anterior y a la siguiente de `weekOf`.
+// Se usa una ventana de ±1 día para tolerar diferencias de zona horaria al generar.
+async function getNeighborAssigneeIds(weekOf: Date) {
+  const query: Record<string, unknown> = {
+    $or: [-7, 7].map(offset => ({
+      weekOf: {
+        $gte: new Date(weekOf.getTime() + (offset - 1) * DAY_MS),
+        $lte: new Date(weekOf.getTime() + (offset + 1) * DAY_MS)
+      }
+    }))
+  };
+
+  const neighbors = await RoleAssignment.find(query).select('assignedUser').lean();
+  return new Set(neighbors.map((n: { assignedUser?: { toString(): string } }) => n.assignedUser?.toString()).filter(Boolean));
+}
+
 async function generateFutureWeeks() {
   // Find approved users
   const users = await User.find({ setListRoleStatus: 'APPROVED' }).sort({ createdAt: 1 });
-  if (users.length === 0) return;
+  // Con menos de 2 participantes no se puede evitar que alguien repita semanas seguidas
+  if (users.length < 2) return;
 
   const settings = await RoleSettings.findOne({ singletonId: 'config' });
   let lastAssignedIndex = 0;
@@ -76,6 +95,15 @@ async function generateFutureWeeks() {
 
     const existing = await RoleAssignment.findOne({ weekOf });
     if (!existing) {
+      // Nadie puede tener el rol dos semanas seguidas: saltar a quien tenga la semana vecina
+      const neighborIds = await getNeighborAssigneeIds(weekOf);
+      let attempts = 0;
+      while (neighborIds.has(users[lastAssignedIndex]._id.toString()) && attempts < users.length) {
+        lastAssignedIndex = (lastAssignedIndex + 1) % users.length;
+        attempts++;
+      }
+      if (attempts === users.length) continue;
+
       const sundayDate = new Date(weekOf);
       sundayDate.setDate(sundayDate.getDate() + 6); // Sunday (End of current week)
 
@@ -254,6 +282,19 @@ export async function completeRoleAssignment(assignmentId: string) {
       }
     }
   }
+
+  revalidatePath('/setlist-roles');
+  revalidatePath('/dashboard');
+}
+
+export async function deleteRoleAssignment(assignmentId: string) {
+  const session = await getServerSession(authOptions);
+  if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Unauthorized');
+
+  await dbConnect();
+
+  const assignment = await RoleAssignment.findByIdAndDelete(assignmentId);
+  if (!assignment) throw new Error('Assignment not found');
 
   revalidatePath('/setlist-roles');
   revalidatePath('/dashboard');

@@ -35,7 +35,8 @@ export async function PUT(req: Request) {
 
     const updates: any = {};
 
-    if (requestSetListRole) {
+    // Los invitados no pueden participar en el Rol de Set Lists
+    if (requestSetListRole && user.role !== 'GUEST') {
       updates.setListRoleStatus = 'PENDING';
       
       // Notify admins

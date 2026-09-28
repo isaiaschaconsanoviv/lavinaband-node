@@ -23,6 +23,8 @@ interface Mix {
 interface InEarsClientProps {
   actorId: string;
   canManage: boolean;
+  // Los ingenieros de audio solo ven el panel de cambios recientes (sin faders)
+  isSoundEngineer: boolean;
   channels: InEarChannel[];
   performers: { _id: string; name: string }[];
   initialOwnerId: string | null;
@@ -42,7 +44,7 @@ function SortableFader({ id, isReordering, children }: { id: string; isReorderin
   return <div ref={setNodeRef} style={style}>{children(handle)}</div>;
 }
 
-export default function InEarsClient({ actorId, canManage, channels, performers, initialOwnerId, initialMix }: InEarsClientProps) {
+export default function InEarsClient({ actorId, canManage, isSoundEngineer, channels, performers, initialOwnerId, initialMix }: InEarsClientProps) {
   const [ownerId, setOwnerId] = useState(initialOwnerId);
   const [levels, setLevels] = useState<Record<string, number>>(initialMix.levels);
   const [order, setOrder] = useState<string[]>(initialMix.order);
@@ -50,6 +52,8 @@ export default function InEarsClient({ actorId, canManage, channels, performers,
   const [isReordering, setIsReordering] = useState(false);
   const [isLoadingMix, setIsLoadingMix] = useState(false);
   const mixTopRef = useRef<HTMLDivElement>(null);
+  // Panel colapsable de mezclas (solo para el ingeniero que no canta ni toca)
+  const [isMixPanelOpen, setIsMixPanelOpen] = useState(false);
 
   // Cambios aún no enviados y temporizador del envío
   const pendingRef = useRef<Record<string, number>>({});
@@ -142,10 +146,11 @@ export default function InEarsClient({ actorId, canManage, channels, performers,
     }
   };
 
-  // Desde "Cambios recientes": abrir la mezcla de quien pidió el cambio y subir a los faders
+  // Desde "Cambios recientes": abrir la mezcla de quien pidió el cambio y llevar la vista a los faders
   const selectMixFromChange = (mixOwnerId: string) => {
+    setIsMixPanelOpen(true);
     loadOwnerMix(mixOwnerId);
-    mixTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => mixTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
   const changeOwner = (newOwnerId: string) => {
@@ -186,24 +191,13 @@ export default function InEarsClient({ actorId, canManage, channels, performers,
     error: 'text-red-400',
   };
 
-  if (performers.length === 0) {
-    return (
-      <div className="bg-zinc-900/60 p-8 rounded-xl border border-zinc-700/50 text-center text-zinc-400">
-        Aún no hay miembros marcados como voz o instrumento. Márcalo en tu Perfil (sección In-Ears) o pídele a un administrador que lo haga desde Usuarios.
-      </div>
-    );
-  }
+  // El ingeniero que no canta ni toca ve primero los cambios recientes y las mezclas
+  // en un panel colapsable; si también es voz o instrumento, ve la vista completa
+  const isActorPerformer = performers.some(p => p._id === actorId);
+  const isEngineerOnly = isSoundEngineer && !isActorPerformer;
 
-  if (!ownerId) {
-    return (
-      <div className="bg-zinc-900/60 p-8 rounded-xl border border-zinc-700/50 text-center text-zinc-400">
-        Para tener tu mezcla personal, marca en tu Perfil (sección In-Ears) si cantas o qué instrumento tocas.
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
+  const mixControls = ownerId && (
+    <>
       <div ref={mixTopRef} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 scroll-mt-24">
         {canManage ? (
           <div className="w-full sm:w-72">
@@ -262,6 +256,59 @@ export default function InEarsClient({ actorId, canManage, channels, performers,
           </SortableContext>
         </DndContext>
       </div>
+
+    </>
+  );
+
+  if (isEngineerOnly) {
+    return (
+      <div className="space-y-6">
+        <InEarChangesPanel currentOwnerId={ownerId} onSelectMix={selectMixFromChange} onApplied={loadOwnerMix} />
+
+        <div className="bg-zinc-900/60 backdrop-blur border border-zinc-700/50 rounded-xl shadow-lg">
+          <button
+            type="button"
+            onClick={() => setIsMixPanelOpen(!isMixPanelOpen)}
+            className="w-full flex items-center justify-between gap-3 p-5 sm:px-6 text-left"
+          >
+            <span>
+              <span className="block text-lg font-semibold text-zinc-200">Mezclas</span>
+              <span className="block text-xs text-zinc-500">Ver y ajustar los faders de cada miembro</span>
+            </span>
+            <svg className={`w-5 h-5 text-zinc-500 transition-transform ${isMixPanelOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          </button>
+
+          {isMixPanelOpen && (
+            <div className="px-5 sm:px-6 pb-5 sm:pb-6 space-y-6 animate-in slide-in-from-top-2 fade-in duration-200">
+              {mixControls || (
+                <p className="text-sm text-zinc-500">Aún no hay miembros marcados como voz o instrumento.</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (performers.length === 0) {
+    return (
+      <div className="bg-zinc-900/60 p-8 rounded-xl border border-zinc-700/50 text-center text-zinc-400">
+        Aún no hay miembros marcados como voz o instrumento. Márcalo en tu Perfil (sección In-Ears) o pídele a un administrador que lo haga desde Usuarios.
+      </div>
+    );
+  }
+
+  if (!ownerId) {
+    return (
+      <div className="bg-zinc-900/60 p-8 rounded-xl border border-zinc-700/50 text-center text-zinc-400">
+        Para tener tu mezcla personal, marca en tu Perfil (sección In-Ears) si cantas o qué instrumento tocas.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {mixControls}
 
       {/* Al marcar un cambio como aplicado, se muestra esa mezcla con sus niveles actuales */}
       {canManage && <InEarChangesPanel currentOwnerId={ownerId} onSelectMix={selectMixFromChange} onApplied={loadOwnerMix} />}

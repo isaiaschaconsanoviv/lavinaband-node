@@ -21,12 +21,17 @@ export default async function InEarsPage() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
       <header>
         <h1 className="text-3xl font-bold">In-Ears</h1>
-        <p className="text-zinc-400 mt-1">Ajusta tu mezcla personal. El ingeniero de audio recibe tus cambios.</p>
+        <p className="text-zinc-400 mt-1">
+          {actor.isSoundEngineer && !isActorPerformer
+            ? 'Revisa los cambios que pide la banda en sus mezclas y márcalos como aplicados.'
+            : 'Ajusta tu mezcla personal. El ingeniero de audio recibe tus cambios.'}
+        </p>
       </header>
 
       <InEarsClient
         actorId={actor.id}
         canManage={actor.canManage}
+        isSoundEngineer={actor.isSoundEngineer}
         channels={channels}
         performers={performers}
         initialOwnerId={initialOwnerId}

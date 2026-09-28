@@ -294,7 +294,7 @@ export default function AnnouncementPage() {
 
           <div className="p-6 sm:p-8">
             <div 
-              className="prose prose-invert prose-lg max-w-none w-full text-zinc-300 leading-relaxed break-words whitespace-pre-wrap [&_img]:rounded-xl [&_img]:shadow-lg [&_img]:!max-w-full [&_img]:h-auto [&_img]:mx-auto [&_img]:my-6 [&_a]:text-blue-400 hover:[&_a]:underline [&_*]:!max-w-full"
+              className="prose prose-invert prose-lg max-w-none w-full text-zinc-300 leading-relaxed break-words whitespace-pre-wrap [&_img]:rounded-xl [&_img]:shadow-lg [&_img]:!max-w-full [&_img]:h-auto [&_img]:mx-auto [&_img]:my-6 [&_a]:text-blue-400 hover:[&_a]:underline [&_*]:!max-w-full [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-6 [&_ul]:pl-6 [&_ol]:my-3 [&_ul]:my-3 [&_li]:my-1 [&_li]:pl-1 [&_li[data-list=bullet]]:list-disc [&_li[data-list=ordered]]:list-decimal"
               dangerouslySetInnerHTML={{ __html: announcement.text.replace(/&nbsp;/g, ' ') }}
             />
           </div>

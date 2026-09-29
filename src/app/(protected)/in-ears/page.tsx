@@ -18,7 +18,7 @@ export default async function InEarsPage() {
   const initialMix = initialOwnerId ? await loadMix(initialOwnerId) : { levels: {}, order: [] };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl lg:max-w-none mx-auto">
       <header>
         <h1 className="text-3xl font-bold">In-Ears</h1>
         <p className="text-zinc-400 mt-1">

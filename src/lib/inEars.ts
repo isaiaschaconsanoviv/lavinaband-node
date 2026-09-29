@@ -23,13 +23,20 @@ export const MASTER_CHANNEL = 'master';
 
 // Canales fijos que no corresponden a un miembro de la banda
 export const FIXED_CHANNELS = [
-  { id: 'fixed:pastor', label: 'Pastor' },
-  { id: 'fixed:multimedia', label: 'Multimedia' },
+  { id: 'fixed:pastor', label: 'Pastor', icon: '🎤' },
+  { id: 'fixed:multimedia', label: 'Multimedia', icon: '🎶' },
 ];
 
 export interface InEarChannel {
   id: string;
+  // Nombre completo del canal, por ejemplo "G. Eléctrica · Guty Leal"
   label: string;
+  // Partes del nombre para mostrarlas en dos renglones: "G. Eléctrica" / "Guty"
+  title: string;
+  // Solo la primera palabra del nombre del miembro
+  member?: string;
+  // Ícono que se muestra junto al nombre (solo en el fader, no en notificaciones)
+  icon?: string;
   kind: 'voice' | 'instrument' | 'fixed';
   color?: string;
 }
@@ -51,16 +58,17 @@ export function isPerformer(member: BandMember) {
 export function buildChannels(members: BandMember[]): InEarChannel[] {
   const channels: InEarChannel[] = [];
   for (const member of members) {
+    const firstName = member.name.trim().split(/\s+/)[0];
     if (member.isVocalist) {
-      channels.push({ id: `voice:${member._id}`, label: `Voz · ${member.name}`, kind: 'voice', color: member.roleColor });
+      channels.push({ id: `voice:${member._id}`, label: `Voz · ${member.name}`, title: 'Voz', member: firstName, kind: 'voice', color: member.roleColor });
     }
     for (const instrument of member.instruments ?? []) {
       if (!INSTRUMENTS.includes(instrument as Instrument)) continue;
-      channels.push({ id: `inst:${member._id}:${INSTRUMENT_SLUGS[instrument as Instrument]}`, label: `${instrument} · ${member.name}`, kind: 'instrument', color: member.roleColor });
+      channels.push({ id: `inst:${member._id}:${INSTRUMENT_SLUGS[instrument as Instrument]}`, label: `${instrument} · ${member.name}`, title: instrument, member: firstName, kind: 'instrument', color: member.roleColor });
     }
   }
   for (const fixed of FIXED_CHANNELS) {
-    channels.push({ ...fixed, kind: 'fixed' });
+    channels.push({ ...fixed, title: fixed.label, kind: 'fixed' });
   }
   return channels;
 }

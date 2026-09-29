@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { DndContext, closestCenter, useSensor, useSensors, PointerSensor, TouchSensor, type DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { SortableContext, rectSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import CustomSelect from '@/components/ui/CustomSelect';
 import InEarFader from '@/components/inEars/InEarFader';
@@ -41,8 +41,11 @@ function SortableFader({ id, isReordering, children }: { id: string; isReorderin
     </div>
   ) : null;
 
-  return <div ref={setNodeRef} style={style}>{children(handle)}</div>;
+  return <div ref={setNodeRef} style={style} className={STRIP_CLASS}>{children(handle)}</div>;
 }
+
+// En pantallas grandes las tiras conservan su ancho y no se encogen
+const STRIP_CLASS = 'lg:shrink-0';
 
 export default function InEarsClient({ actorId, canManage, isSoundEngineer, channels, performers, initialOwnerId, initialMix }: InEarsClientProps) {
   const [ownerId, setOwnerId] = useState(initialOwnerId);
@@ -226,23 +229,31 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
         </div>
       </div>
 
-      <div className={`space-y-3 transition-opacity ${isLoadingMix ? 'opacity-50 pointer-events-none' : ''}`}>
-        <InEarFader
-          label="🎧 Volumen general"
-          size="large"
-          value={levels[MASTER_CHANNEL] ?? 0}
-          onChange={v => setLevel(MASTER_CHANNEL, v)}
-          disabled={isReordering}
-        />
-
+      {/* Celular: faders uno debajo del otro. Pantallas grandes: tiras verticales lado a lado como en la consola */}
+      <div className={`transition-opacity ${isLoadingMix ? 'opacity-50 pointer-events-none' : ''}`}>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={sortedChannels.map(c => c.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-3">
+          <SortableContext items={sortedChannels.map(c => c.id)} strategy={rectSortingStrategy}>
+            {/* justify-between: las tiras conservan su tamaño y el espacio sobrante se reparte entre ellas */}
+            <div className="space-y-3 lg:space-y-0 lg:flex lg:items-stretch lg:justify-between lg:gap-3 lg:overflow-x-auto lg:pb-3 custom-scrollbar">
+              {/* El volumen general va primero y no se reordena */}
+              <div className={STRIP_CLASS}>
+                <InEarFader
+                  label="🎧 Volumen general"
+                  size="large"
+                  value={levels[MASTER_CHANNEL] ?? 0}
+                  onChange={v => setLevel(MASTER_CHANNEL, v)}
+                  disabled={isReordering}
+                />
+              </div>
+
               {sortedChannels.map(channel => (
                 <SortableFader key={channel.id} id={channel.id} isReordering={isReordering}>
                   {handle => (
                     <InEarFader
                       label={channel.label}
+                      title={channel.title}
+                      member={channel.member}
+                      icon={channel.icon}
                       color={channel.color}
                       value={levels[channel.id] ?? 0}
                       onChange={v => setLevel(channel.id, v)}

@@ -85,8 +85,8 @@ async function saveMix(req: NextRequest, { params }: Params) {
 
       // Los ajustes que hace un ingeniero en la mezcla de otro no se notifican
       if (actor.id === ownerId) {
-        const engineers = await User.find({ isSoundEngineer: true, _id: { $ne: actor.id } }).select('pushSubscriptions');
-        await sendPush(engineers, {
+        const engineers = await User.find({ isSoundEngineer: true, _id: { $ne: actor.id } }).select('pushSubscriptions notificationPrefs');
+        await sendPush('inEars', engineers, {
           title: `🎧 In-Ears · ${owner.name}`,
           // En cuadritos del medidor (no en dB) para que el cambio sea fácil de ubicar en la consola
           body: changes.map(c => `${c.label}: ${formatStepChange(c.from, c.to)}`).join('\n'),

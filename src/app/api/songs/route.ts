@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     try {
       const admins = await User.find({ role: 'ADMIN' });
       
-      await sendPush(admins, {
+      await sendPush('songSuggestions', admins, {
         title: 'Nueva Sugerencia de Canción',
         body: `${session.user?.name} ha sugerido la canción "${body.title}" de ${body.artist}.`,
         url: '/songs?sugerencias=1'

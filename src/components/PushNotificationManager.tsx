@@ -2,11 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { isPushSupported, saveSubscription, subscribeBrowser } from '@/lib/pushClient';
+import {
+  clearPushDisabledOnDevice,
+  disablePushOnDevice,
+  isPushDisabledOnDevice,
+  isPushSupported,
+  saveSubscription,
+  subscribeBrowser,
+} from '@/lib/pushClient';
 
-export default function PushNotificationManager({ hideWhenSubscribed }: { hideWhenSubscribed?: boolean }) {
+// Activa (o, con `allowDisable`, desactiva) las notificaciones en este dispositivo.
+// Con `hideWhenSubscribed` (Dashboard) no se muestra si ya están activas o si el
+// usuario las desactivó a propósito.
+export default function PushNotificationManager({ hideWhenSubscribed, allowDisable }: { hideWhenSubscribed?: boolean; allowDisable?: boolean }) {
   const [isSupported, setIsSupported] = useState(false);
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
+  const [disabledByUser, setDisabledByUser] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,6 +38,8 @@ export default function PushNotificationManager({ hideWhenSubscribed }: { hideWh
       });
       const sub = await registration.pushManager.getSubscription();
       setSubscription(sub);
+      setDisabledByUser(isPushDisabledOnDevice());
+      setIsBlocked(Notification.permission === 'denied');
     } catch (error) {
       console.error('SW registration failed:', error);
     } finally {
@@ -37,6 +51,8 @@ export default function PushNotificationManager({ hideWhenSubscribed }: { hideWh
     try {
       setLoading(true);
       const sub = await subscribeBrowser();
+      clearPushDisabledOnDevice();
+      setDisabledByUser(false);
       setSubscription(sub);
 
       if (await saveSubscription(sub)) {
@@ -46,13 +62,29 @@ export default function PushNotificationManager({ hideWhenSubscribed }: { hideWh
       }
     } catch (error) {
       console.error(error);
+      setIsBlocked(Notification.permission === 'denied');
       toast.error('No se pudo activar las notificaciones.');
     } finally {
       setLoading(false);
     }
   }
 
-  if (hideWhenSubscribed && subscription) return null;
+  async function unsubscribeFromPush() {
+    try {
+      setLoading(true);
+      await disablePushOnDevice();
+      setSubscription(null);
+      setDisabledByUser(true);
+      toast.success('Notificaciones desactivadas en este dispositivo');
+    } catch (error) {
+      console.error(error);
+      toast.error('No se pudieron desactivar las notificaciones.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (hideWhenSubscribed && (subscription || disabledByUser)) return null;
 
   if (!isSupported) {
     return (
@@ -62,23 +94,37 @@ export default function PushNotificationManager({ hideWhenSubscribed }: { hideWh
     );
   }
 
+  const description = subscription
+    ? 'Estás recibiendo notificaciones en este dispositivo.'
+    : isBlocked
+      ? 'Las notificaciones están bloqueadas en este navegador. Habilítalas en su configuración para poder activarlas.'
+      : disabledByUser
+        ? 'Desactivaste las notificaciones en este dispositivo.'
+        : 'Activa las notificaciones para enterarte cuando haya nuevos anuncios.';
+
   return (
     <div className="p-4 bg-zinc-800/30 rounded-xl border border-zinc-700/50 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div>
-        <h3 className="font-semibold text-zinc-200">Notificaciones Push</h3>
-        <p className="text-sm text-zinc-400">
-          {subscription
-            ? 'Estás recibiendo notificaciones en este dispositivo.'
-            : 'Activa las notificaciones para enterarte cuando haya nuevos anuncios.'}
-        </p>
+        <h3 className="font-semibold text-zinc-200">Notificaciones en este dispositivo</h3>
+        <p className="text-sm text-zinc-400">{description}</p>
       </div>
-      <button
-        onClick={subscribeToPush}
-        disabled={loading || !!subscription}
-        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
-      >
-        {loading ? 'Cargando...' : subscription ? 'Activadas' : 'Activar Notificaciones'}
-      </button>
+      {subscription && allowDisable ? (
+        <button
+          onClick={unsubscribeFromPush}
+          disabled={loading}
+          className="px-4 py-2 text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600/80 border border-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+        >
+          {loading ? 'Cargando...' : 'Desactivar'}
+        </button>
+      ) : (
+        <button
+          onClick={subscribeToPush}
+          disabled={loading || !!subscription || isBlocked}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+        >
+          {loading ? 'Cargando...' : subscription ? 'Activadas' : 'Activar Notificaciones'}
+        </button>
+      )}
     </div>
   );
 }

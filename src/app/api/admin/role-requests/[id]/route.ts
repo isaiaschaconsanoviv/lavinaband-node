@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await user.save();
 
     // Notify the user of the decision
-    await sendPush([user], {
+    await sendPush('roleTurns', [user], {
       title: 'Respuesta a tu solicitud de Rol',
       body: status === 'APPROVED'
         ? '¡Tu solicitud para el rol de Set Lists ha sido aprobada!'

@@ -35,7 +35,7 @@ export async function PUT(req: Request) {
       
       // Notify admins
       const admins = await User.find({ role: 'ADMIN' });
-      await sendPush(admins, {
+      await sendPush('roleRequests', admins, {
         title: 'Nueva Solicitud de Rol',
         body: `${user.name} ha solicitado unirse al rol de Set Lists.`,
         url: '/setlist-roles'

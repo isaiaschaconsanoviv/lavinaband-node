@@ -1,5 +1,6 @@
 import webpush, { type PushSubscription } from 'web-push';
 import User from '@/models/User';
+import { wantsNotification, type NotificationPrefs, type NotificationType } from '@/lib/notificationPrefs';
 
 // Único lugar donde se configura web-push. Las llaves deben ser las mismas que usa
 // el navegador al suscribirse (NEXT_PUBLIC_VAPID_PUBLIC_KEY).
@@ -12,12 +13,14 @@ if (publicKey && privateKey) {
 }
 
 export type PushPayload = { title: string; body: string; url?: string };
-type PushRecipient = { pushSubscriptions?: PushSubscription[] | null };
+// Los destinatarios deben traer `notificationPrefs` (ojo con los `.select()`)
+type PushRecipient = { pushSubscriptions?: PushSubscription[] | null; notificationPrefs?: NotificationPrefs | null };
 
-// Envía la notificación a todos los dispositivos de los usuarios en paralelo.
+// Envía la notificación a todos los dispositivos de los usuarios en paralelo,
+// omitiendo a quienes desactivaron ese tipo de notificación en su Perfil.
 // Las suscripciones que el servicio de push reporta como inexistentes (404/410:
 // app desinstalada, datos borrados, permiso revocado) se eliminan de la base.
-export async function sendPush(recipients: PushRecipient[], payload: PushPayload) {
+export async function sendPush(type: NotificationType, recipients: PushRecipient[], payload: PushPayload) {
   if (!isConfigured) {
     console.warn('Push no configurado: faltan NEXT_PUBLIC_VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY');
     return;
@@ -25,7 +28,7 @@ export async function sendPush(recipients: PushRecipient[], payload: PushPayload
 
   // Un mismo dispositivo pudo quedar registrado en varias cuentas: enviar una sola vez
   const subscriptions = new Map<string, PushSubscription>();
-  for (const recipient of recipients) {
+  for (const recipient of recipients.filter(r => wantsNotification(r.notificationPrefs, type))) {
     for (const sub of recipient.pushSubscriptions ?? []) {
       if (sub?.endpoint) subscriptions.set(sub.endpoint, sub);
     }

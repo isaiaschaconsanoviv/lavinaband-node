@@ -39,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Notificar a toda la banda, incluido quien lo marcó (le sirve de confirmación).
     // Los invitados no ven set lists.
     const recipients = await User.find({ role: { $ne: 'GUEST' } });
-    await sendPush(recipients, {
+    await sendPush('setlistReady', recipients, {
       title: 'Set List Listo',
       body: `${session.user?.name} terminó el set list "${setlist.title}". ¡Pasa a revisarlo!`,
       url: `/setlists/${setlistId}`

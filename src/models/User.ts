@@ -13,6 +13,8 @@ const UserSchema = new mongoose.Schema({
   roleColor: { type: String, default: '#71717a' }, // Default zinc-500
   setListRoleStatus: { type: String, enum: ['NONE', 'PENDING', 'APPROVED'], default: 'NONE' },
   pushSubscriptions: { type: Array, default: [] },
+  // Tipos de notificación desactivados por el usuario ({ announcements: false, ... }); ver lib/notificationPrefs.ts
+  notificationPrefs: { type: mongoose.Schema.Types.Mixed, default: {} },
   // In-Ears: qué canales aporta a la consola y si opera como ingeniero de audio
   isVocalist: { type: Boolean, default: false },
   instruments: { type: [String], enum: ['Batería', 'Bajo', 'G. Acústica', 'G. Eléctrica', 'Teclado'], default: [] },

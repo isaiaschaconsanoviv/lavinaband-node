@@ -8,6 +8,8 @@ import RoleForm from './RoleForm';
 import InEarForm from './InEarForm';
 import PushNotificationManager from '@/components/PushNotificationManager';
 import MobileLogoutButton from './MobileLogoutButton';
+import NotificationPrefsForm from './NotificationPrefsForm';
+import { notificationTypesFor } from '@/lib/notificationPrefs';
 
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions);
@@ -61,7 +63,13 @@ export default async function ProfilePage() {
 
           <div className="bg-zinc-900/60 backdrop-blur border border-zinc-700/50 rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-semibold mb-4 text-purple-400">Preferencias de Notificaciones</h3>
-            <PushNotificationManager />
+            <div className="space-y-4">
+              <PushNotificationManager allowDisable />
+              <NotificationPrefsForm
+                types={notificationTypesFor(user).map(t => t.key)}
+                initialPrefs={JSON.parse(JSON.stringify(user.notificationPrefs ?? {}))}
+              />
+            </div>
           </div>
 
           <div className="bg-zinc-900/60 backdrop-blur border border-zinc-700/50 rounded-xl p-6 shadow-lg">

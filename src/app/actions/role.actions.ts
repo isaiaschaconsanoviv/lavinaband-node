@@ -180,7 +180,7 @@ export async function confirmRoleAssignment(assignmentId: string) {
 
   // Notify admins
   const admins = await User.find({ role: 'ADMIN' });
-  await sendPush(admins, {
+  await sendPush('turnConfirmed', admins, {
     title: 'Turno Confirmado',
     body: `${user.name} ha confirmado de enterado su turno para el Rol de Set Lists de esta semana.`,
     url: '/setlist-roles'
@@ -206,7 +206,7 @@ export async function changeRoleAssignment(assignmentId: string, newUserId: stri
   // Notify the new assigned user
   const newUser = await User.findById(newUserId);
   if (newUser) {
-    await sendPush([newUser], {
+    await sendPush('roleTurns', [newUser], {
       title: 'Nuevo Turno Asignado',
       body: `Se te ha asignado un turno para el Rol de Set Lists. Por favor, entra a la app para confirmarlo.`,
       url: '/setlist-roles'

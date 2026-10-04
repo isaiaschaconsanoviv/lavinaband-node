@@ -77,7 +77,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       
       if (addedCollabs.length > 0) {
         const users = await mongoose.models.User.find({ _id: { $in: addedCollabs } });
-        await sendPush(users, {
+        await sendPush('setlistCollaborator', users, {
           title: '¡Nuevo Colaborador!',
           body: `Te han añadido como colaborador en el setlist: ${existingSetlist.title}`,
           url: `/setlists/${setlistId}`

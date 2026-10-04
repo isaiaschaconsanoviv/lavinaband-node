@@ -54,7 +54,7 @@ export async function POST(req: Request) {
         role: { $ne: 'GUEST' },
         pushSubscriptions: { $exists: true, $not: { $size: 0 } }
       });
-      await sendPush(users, {
+      await sendPush('announcements', users, {
         title: 'Nuevo anuncio publicado',
         body: newAnnouncement.title,
         url: `/anuncios/${newAnnouncement._id}`

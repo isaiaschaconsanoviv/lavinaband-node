@@ -7,7 +7,7 @@ import User from '@/models/User';
 import InEarMix from '@/models/InEarMix';
 import InEarChange from '@/models/InEarChange';
 import { getInEarActor, loadBandMembers, loadMix } from '@/lib/inEarsServer';
-import { MASTER_CHANNEL, buildChannels, clampLevel, formatLevel, isPerformer } from '@/lib/inEars';
+import { MASTER_CHANNEL, buildChannels, clampLevel, formatStepChange, isPerformer } from '@/lib/inEars';
 
 
 type Params = { params: Promise<{ ownerId: string }> };
@@ -88,7 +88,8 @@ async function saveMix(req: NextRequest, { params }: Params) {
         const engineers = await User.find({ isSoundEngineer: true, _id: { $ne: actor.id } }).select('pushSubscriptions');
         await sendPush(engineers, {
           title: `🎧 In-Ears · ${owner.name}`,
-          body: changes.map(c => `${c.label}: ${formatLevel(c.from)} → ${formatLevel(c.to)}`).join('\n'),
+          // En cuadritos del medidor (no en dB) para que el cambio sea fácil de ubicar en la consola
+          body: changes.map(c => `${c.label}: ${formatStepChange(c.from, c.to)}`).join('\n'),
           url: '/in-ears'
         });
       }

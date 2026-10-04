@@ -97,3 +97,15 @@ export function stepLevel(value: number, direction: 1 | -1) {
 export function formatLevel(value: number) {
   return value > 0 ? `+${value}` : String(value);
 }
+
+// Cuántos cuadritos del medidor subió (positivo) o bajó (negativo) un canal
+export function levelSteps(from: number, to: number) {
+  return IN_EAR_LEVELS.indexOf(clampLevel(to)) - IN_EAR_LEVELS.indexOf(clampLevel(from));
+}
+
+// Cambio expresado en cuadritos del medidor, por ejemplo "▲ 2 cuadritos" o "▼ 1 cuadrito"
+export function formatStepChange(from: number, to: number) {
+  const steps = levelSteps(from, to);
+  const count = Math.abs(steps);
+  return `${steps > 0 ? '▲' : '▼'} ${count} ${count === 1 ? 'cuadrito' : 'cuadritos'}`;
+}

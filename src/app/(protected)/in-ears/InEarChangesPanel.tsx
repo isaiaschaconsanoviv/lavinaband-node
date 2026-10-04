@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import ConfirmModal from '@/components/ConfirmModal';
-import { formatLevel } from '@/lib/inEars';
+import { formatLevel, formatStepChange } from '@/lib/inEars';
 
 interface InEarChangeItem {
   _id: string;
@@ -163,10 +163,12 @@ export default function InEarChangesPanel({ currentOwnerId, onSelectMix, onAppli
                 {item.changes.map(change => (
                   <li key={change.channel} className="flex items-center justify-between gap-3 text-sm">
                     <span className="text-zinc-300 truncate">{change.label}</span>
-                    <span className="font-mono tabular-nums whitespace-nowrap">
-                      <span className="text-zinc-500">{formatLevel(change.from)}</span>
-                      <span className="text-zinc-600"> → </span>
-                      <span className={change.to > change.from ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>{formatLevel(change.to)}</span>
+                    {/* Primero los cuadritos (como en la notificación) y después los valores de la consola */}
+                    <span className="whitespace-nowrap text-right">
+                      <span className={change.to > change.from ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>{formatStepChange(change.from, change.to)}</span>
+                      <span className="ml-1.5 font-mono tabular-nums text-xs text-zinc-500">
+                        ({formatLevel(change.from)} → {formatLevel(change.to)})
+                      </span>
                     </span>
                   </li>
                 ))}

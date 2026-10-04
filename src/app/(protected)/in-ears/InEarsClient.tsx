@@ -29,6 +29,8 @@ interface InEarsClientProps {
   performers: { _id: string; name: string }[];
   initialOwnerId: string | null;
   initialMix: Mix;
+  // El acceso rápido (burbuja del set list) no permite reordenar los canales
+  allowReorder?: boolean;
 }
 
 function SortableFader({ id, isReordering, children }: { id: string; isReordering: boolean; children: (handle: React.ReactNode) => React.ReactNode }) {
@@ -47,7 +49,7 @@ function SortableFader({ id, isReordering, children }: { id: string; isReorderin
 // En pantallas grandes las tiras conservan su ancho y no se encogen
 const STRIP_CLASS = 'lg:shrink-0';
 
-export default function InEarsClient({ actorId, canManage, isSoundEngineer, channels, performers, initialOwnerId, initialMix }: InEarsClientProps) {
+export default function InEarsClient({ actorId, canManage, isSoundEngineer, channels, performers, initialOwnerId, initialMix, allowReorder = true }: InEarsClientProps) {
   const [ownerId, setOwnerId] = useState(initialOwnerId);
   const [levels, setLevels] = useState<Record<string, number>>(initialMix.levels);
   const [order, setOrder] = useState<string[]>(initialMix.order);
@@ -218,6 +220,7 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
 
         <div className="flex items-center gap-3 justify-between sm:justify-end">
           <span className={`text-sm font-medium ${statusColor[status]}`}>{statusLabel[status]}</span>
+          {allowReorder && (
           <button
             type="button"
             onClick={() => setIsReordering(!isReordering)}
@@ -226,6 +229,7 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
           >
             {isReordering ? '✓ Listo' : '⇅ Reordenar'}
           </button>
+          )}
         </div>
       </div>
 

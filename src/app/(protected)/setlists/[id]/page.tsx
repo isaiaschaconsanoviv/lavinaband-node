@@ -11,6 +11,7 @@ import { DndContext, closestCenter, useSensor, useSensors, PointerSensor, TouchS
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import SongDetailsModal from '@/components/songs/SongDetailsModal';
+import InEarQuickAccess from '@/components/inEars/InEarQuickAccess';
 import toast from 'react-hot-toast';
 
 function SortableItem({ id, song, isReordering, onRemove, onUpdateSong, isAdmin, canEdit, onOpenLyrics }: { id: string, song: any, isReordering: boolean, onRemove: (id: string) => void, onUpdateSong: (id: string, updates: any) => void, isAdmin: boolean, canEdit: boolean, onOpenLyrics: (song: any) => void }) {
@@ -370,6 +371,9 @@ export default function SetlistDetailPage() {
         enableCapo
         enableFullscreen
       />
+
+      {/* Burbuja de acceso rápido a la mezcla de In-Ears (encima también del modal de canción) */}
+      <InEarQuickAccess />
 
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-4">

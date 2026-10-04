@@ -70,7 +70,18 @@ function parseHolyrics(lyrics: string, formatting: string): ParsedParagraph[] | 
   }
 }
 
-export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyAndVideo = false, enableTranspose = false, enableCapo = false }: { song: any; isOpen: boolean; onClose: () => void; role?: string; hideKeyAndVideo?: boolean; enableTranspose?: boolean; enableCapo?: boolean }) {
+// Tamaños de letra (px) para el modo pantalla completa; el elegido se recuerda en el dispositivo
+const FULLSCREEN_FONT_SIZES = [14, 16, 18, 20, 22, 24, 28, 32, 36];
+const DEFAULT_FONT_INDEX = 2;
+const FONT_STORAGE_KEY = 'lyricsFullscreenFontIndex';
+
+function readStoredFontIndex() {
+  if (typeof window === 'undefined') return DEFAULT_FONT_INDEX;
+  const stored = Number(window.localStorage.getItem(FONT_STORAGE_KEY));
+  return Number.isInteger(stored) && stored >= 0 && stored < FULLSCREEN_FONT_SIZES.length ? stored : DEFAULT_FONT_INDEX;
+}
+
+export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyAndVideo = false, enableTranspose = false, enableCapo = false, enableFullscreen = false }: { song: any; isOpen: boolean; onClose: () => void; role?: string; hideKeyAndVideo?: boolean; enableTranspose?: boolean; enableCapo?: boolean; enableFullscreen?: boolean }) {
   const router = useRouter();
   const [youtubeLink, setYoutubeLink] = useState('');
   const [isEditingYoutube, setIsEditingYoutube] = useState(false);
@@ -91,6 +102,44 @@ export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyA
   const [capo, setCapo] = useState(0);
   // Tono recién guardado desde el transpositor (mientras la lista se actualiza)
   const [savedKey, setSavedKey] = useState<string | null>(null);
+
+  // Modo pantalla completa para leer la letra (con tamaño de letra ajustable)
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fontIndex, setFontIndex] = useState(readStoredFontIndex);
+
+  const changeFontSize = (delta: number) => {
+    setFontIndex(prev => {
+      const next = Math.min(Math.max(prev + delta, 0), FULLSCREEN_FONT_SIZES.length - 1);
+      window.localStorage.setItem(FONT_STORAGE_KEY, String(next));
+      return next;
+    });
+  };
+
+  // Además de expandir el modal, se pide al navegador pantalla completa real (oculta
+  // sus barras). No existe en todos los navegadores (iPhone): ahí solo se expande.
+  const enterFullscreen = () => {
+    setIsFullscreen(true);
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  };
+
+  const exitFullscreen = () => {
+    setIsFullscreen(false);
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  };
+
+  const handleClose = () => {
+    exitFullscreen();
+    onClose();
+  };
+
+  // Si el usuario sale de la pantalla completa del navegador (Esc, gesto atrás), salir también del modo
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement) setIsFullscreen(false);
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
 
   useEffect(() => {
     if (song) {
@@ -265,8 +314,38 @@ export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyA
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col">
+    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-zinc-950' : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200'}>
+      <div className={isFullscreen ? 'w-full h-dvh overflow-hidden flex flex-col bg-zinc-950' : 'bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col'}>
+        {isFullscreen && (
+          <div className="px-3 sm:px-4 py-2 border-b border-zinc-800 flex items-center gap-2 shrink-0 bg-zinc-900">
+            <h2 className="flex-1 min-w-0 truncate text-base font-semibold text-white">{song.title}</h2>
+            <div className="flex items-center rounded-lg border border-zinc-700 overflow-hidden shrink-0">
+              <button
+                onClick={() => changeFontSize(-1)}
+                disabled={fontIndex === 0}
+                className="px-3 py-1.5 text-sm font-semibold text-zinc-300 hover:bg-zinc-800 disabled:opacity-40 transition-colors"
+                title="Letra más pequeña"
+              >
+                A−
+              </button>
+              <button
+                onClick={() => changeFontSize(1)}
+                disabled={fontIndex === FULLSCREEN_FONT_SIZES.length - 1}
+                className="px-3 py-1.5 text-base font-semibold text-zinc-300 hover:bg-zinc-800 border-l border-zinc-700 disabled:opacity-40 transition-colors"
+                title="Letra más grande"
+              >
+                A+
+              </button>
+            </div>
+            <button onClick={exitFullscreen} className="text-zinc-400 hover:text-white transition-colors bg-zinc-800/50 hover:bg-zinc-700 p-2 rounded-full shrink-0" title="Salir de pantalla completa">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
+            </button>
+            <button onClick={handleClose} className="text-zinc-400 hover:text-white transition-colors bg-zinc-800/50 hover:bg-zinc-700 p-2 rounded-full shrink-0" title="Cerrar">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+        )}
+        {!isFullscreen && (
         <div className="p-6 border-b border-zinc-800 flex justify-between items-start shrink-0 bg-zinc-900/50">
           <div className="flex-1 mr-4">
             {isEditingMeta ? (
@@ -318,11 +397,19 @@ export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyA
               </>
             )}
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors bg-zinc-800/50 hover:bg-zinc-700 p-2 rounded-full">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {enableFullscreen && (
+              <button onClick={enterFullscreen} className="text-zinc-500 hover:text-white transition-colors bg-zinc-800/50 hover:bg-zinc-700 p-2 rounded-full" title="Pantalla completa">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+              </button>
+            )}
+            <button onClick={handleClose} className="text-zinc-500 hover:text-white transition-colors bg-zinc-800/50 hover:bg-zinc-700 p-2 rounded-full" title="Cerrar">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
         </div>
-        
+        )}
+
         <div className={`flex-1 ${hideKeyAndVideo ? 'flex flex-col overflow-hidden' : 'p-6 overflow-y-auto space-y-8'}`}>
           {!isEditingMeta && !hideKeyAndVideo && (
             <div className="flex flex-wrap gap-4">
@@ -367,16 +454,17 @@ export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyA
                 />
               )}
 
-              {enableCapo && chordKey && baseKey && (
+              {/* En pantalla completa se oculta el capo; los acordes conservan el capo elegido antes */}
+              {enableCapo && chordKey && baseKey && !isFullscreen && (
                 <div className={hideKeyAndVideo ? 'px-6 sm:px-8 pt-4 pb-3 border-b border-zinc-800 bg-zinc-950 shrink-0' : ''}>
                   <CapoSelector baseKey={baseKey} capo={capo} onChange={setCapo} />
                 </div>
               )}
               
-              <div className={`bg-zinc-950 custom-scrollbar flex flex-col ${hideKeyAndVideo ? 'flex-1 overflow-y-auto p-6 sm:p-8' : 'rounded-xl p-5 border border-zinc-800/50 min-h-[300px] max-h-[600px] overflow-y-auto'}`}>
-                <div className="flex-1">
+              <div className={`bg-zinc-950 custom-scrollbar flex flex-col ${isFullscreen ? 'flex-1 overflow-auto overscroll-contain px-4 py-4 sm:px-6' : hideKeyAndVideo ? 'flex-1 overflow-y-auto p-6 sm:p-8' : 'rounded-xl p-5 border border-zinc-800/50 min-h-[300px] max-h-[600px] overflow-y-auto'}`}>
+                <div className="flex-1" style={isFullscreen ? { fontSize: FULLSCREEN_FONT_SIZES[fontIndex] } : undefined}>
                 {parsedContent ? (
-                  <div className="space-y-6 font-mono text-sm md:text-base leading-relaxed">
+                  <div className={`space-y-6 font-mono leading-relaxed ${isFullscreen ? '' : 'text-sm md:text-base'}`}>
                     {parsedContent.map((para, i) => (
                       <div key={i} className="space-y-3">
                         {para.header && (
@@ -407,7 +495,7 @@ export default function SongDetailsModal({ song, isOpen, onClose, role, hideKeyA
                     dangerouslySetInnerHTML={{ __html: song.lyricsHTML }} 
                   />
                 ) : song.lyrics ? (
-                  <pre className="text-zinc-300 font-sans whitespace-pre-wrap leading-relaxed text-sm">
+                  <pre className={`text-zinc-300 font-sans whitespace-pre-wrap leading-relaxed ${isFullscreen ? '' : 'text-sm'}`}>
                     {song.lyrics}
                   </pre>
                 ) : (

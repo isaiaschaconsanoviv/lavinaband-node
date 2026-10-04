@@ -368,6 +368,7 @@ export default function SetlistDetailPage() {
         role={(session?.user as any)?.role}
         hideKeyAndVideo={true}
         enableCapo
+        enableFullscreen
       />
 
       <div className="grid md:grid-cols-3 gap-6">

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
-import webpush from 'web-push';
+import { sendPush } from '@/lib/push';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import InEarMix from '@/models/InEarMix';
@@ -9,13 +9,6 @@ import InEarChange from '@/models/InEarChange';
 import { getInEarActor, loadBandMembers, loadMix } from '@/lib/inEarsServer';
 import { MASTER_CHANNEL, buildChannels, clampLevel, formatLevel, isPerformer } from '@/lib/inEars';
 
-if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    'mailto:test@example.com',
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
-}
 
 type Params = { params: Promise<{ ownerId: string }> };
 
@@ -93,20 +86,11 @@ async function saveMix(req: NextRequest, { params }: Params) {
       // Los ajustes que hace un ingeniero en la mezcla de otro no se notifican
       if (actor.id === ownerId) {
         const engineers = await User.find({ isSoundEngineer: true, _id: { $ne: actor.id } }).select('pushSubscriptions');
-        const payload = JSON.stringify({
+        await sendPush(engineers, {
           title: `🎧 In-Ears · ${owner.name}`,
           body: changes.map(c => `${c.label}: ${formatLevel(c.from)} → ${formatLevel(c.to)}`).join('\n'),
           url: '/in-ears'
         });
-        for (const engineer of engineers) {
-          for (const sub of engineer.pushSubscriptions ?? []) {
-            try {
-              await webpush.sendNotification(sub, payload);
-            } catch (err) {
-              console.error('Push error:', err);
-            }
-          }
-        }
       }
     }
 

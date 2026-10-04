@@ -7,15 +7,7 @@ import User from '@/models/User';
 import RoleSettings from '@/models/RoleSettings';
 import RoleAssignment from '@/models/RoleAssignment';
 import { revalidatePath } from 'next/cache';
-import webpush from 'web-push';
-
-if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    'mailto:test@example.com',
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
-}
+import { sendPush } from '@/lib/push';
 
 export async function toggleRoleRotation() {
   const session = await getServerSession(authOptions);
@@ -188,23 +180,11 @@ export async function confirmRoleAssignment(assignmentId: string) {
 
   // Notify admins
   const admins = await User.find({ role: 'ADMIN' });
-  const payload = JSON.stringify({
+  await sendPush(admins, {
     title: 'Turno Confirmado',
     body: `${user.name} ha confirmado de enterado su turno para el Rol de Set Lists de esta semana.`,
     url: '/setlist-roles'
   });
-  
-  for (const admin of admins) {
-    if (admin.pushSubscriptions && admin.pushSubscriptions.length > 0) {
-      for (const sub of admin.pushSubscriptions) {
-        try {
-          await webpush.sendNotification(sub, payload);
-        } catch (err) {
-          console.error('Push error:', err);
-        }
-      }
-    }
-  }
 
   revalidatePath('/setlist-roles');
   revalidatePath('/dashboard');
@@ -225,19 +205,12 @@ export async function changeRoleAssignment(assignmentId: string, newUserId: stri
 
   // Notify the new assigned user
   const newUser = await User.findById(newUserId);
-  if (newUser && newUser.pushSubscriptions && newUser.pushSubscriptions.length > 0) {
-    const payload = JSON.stringify({
+  if (newUser) {
+    await sendPush([newUser], {
       title: 'Nuevo Turno Asignado',
       body: `Se te ha asignado un turno para el Rol de Set Lists. Por favor, entra a la app para confirmarlo.`,
       url: '/setlist-roles'
     });
-    for (const sub of newUser.pushSubscriptions) {
-      try {
-        await webpush.sendNotification(sub, payload);
-      } catch (err) {
-        console.error('Push error:', err);
-      }
-    }
   }
 
   revalidatePath('/setlist-roles');
@@ -265,23 +238,11 @@ export async function completeRoleAssignment(assignmentId: string) {
 
   // Notify ALL users
   const allUsers = await User.find({});
-  const payload = JSON.stringify({
+  await sendPush(allUsers, {
     title: 'Set List Terminado',
     body: `${user.name} ha terminado de armar los Set Lists de esta semana.`,
     url: '/setlist-roles'
   });
-  
-  for (const u of allUsers) {
-    if (u.pushSubscriptions && u.pushSubscriptions.length > 0) {
-      for (const sub of u.pushSubscriptions) {
-        try {
-          await webpush.sendNotification(sub, payload);
-        } catch (err) {
-          console.error('Push error:', err);
-        }
-      }
-    }
-  }
 
   revalidatePath('/setlist-roles');
   revalidatePath('/dashboard');

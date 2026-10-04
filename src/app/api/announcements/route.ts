@@ -7,13 +7,7 @@ import { rejectGuests } from '@/lib/guards';
 import dbConnect from '@/lib/mongodb';
 import Announcement from '@/models/Announcement';
 import User from '@/models/User';
-import webpush from 'web-push';
-
-webpush.setVapidDetails(
-  'mailto:test@example.com',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY as string,
-  process.env.VAPID_PRIVATE_KEY as string
-);
+import { sendPush } from '@/lib/push';
 
 export async function GET() {
   try {
@@ -54,21 +48,20 @@ export async function POST(req: Request) {
     });
 
     try {
-      const users = await User.find({ pushSubscriptions: { $exists: true, $not: { $size: 0 } } });
-      const payload = JSON.stringify({
+      // A toda la banda, incluido quien lo publicó (le sirve de confirmación).
+      // Los invitados no pueden ver anuncios.
+      const users = await User.find({
+        role: { $ne: 'GUEST' },
+        pushSubscriptions: { $exists: true, $not: { $size: 0 } }
+      });
+      await sendPush(users, {
         title: 'Nuevo anuncio publicado',
         body: newAnnouncement.title,
         url: `/anuncios/${newAnnouncement._id}`
       });
-
-      for (const user of users) {
-        for (const sub of user.pushSubscriptions) {
-          try {
-            await webpush.sendNotification(sub, payload);
-          } catch (err) {}
-        }
-      }
-    } catch (err) {}
+    } catch (err) {
+      console.error('Error al notificar el anuncio:', err);
+    }
 
     revalidatePath('/dashboard');
     return NextResponse.json(newAnnouncement, { status: 201 });

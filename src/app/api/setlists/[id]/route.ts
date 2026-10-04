@@ -8,15 +8,7 @@ import '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { rejectGuests } from '@/lib/guards';
-import webpush from 'web-push';
-
-if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    'mailto:soporte@lavinaband.com',
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
-}
+import { sendPush } from '@/lib/push';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -78,23 +70,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       
       if (addedCollabs.length > 0) {
         const users = await mongoose.models.User.find({ _id: { $in: addedCollabs } });
-        const payload = JSON.stringify({
+        await sendPush(users, {
           title: '¡Nuevo Colaborador!',
           body: `Te han añadido como colaborador en el setlist: ${existingSetlist.title}`,
           url: `/setlists/${setlistId}`
         });
-        
-        for (const u of users) {
-          if (u.pushSubscriptions && u.pushSubscriptions.length > 0) {
-            for (const sub of u.pushSubscriptions) {
-              try {
-                await webpush.sendNotification(sub, payload);
-              } catch (e) {
-                console.error('Push error:', e);
-              }
-            }
-          }
-        }
       }
     }
     

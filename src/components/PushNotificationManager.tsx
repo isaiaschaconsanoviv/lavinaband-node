@@ -2,19 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
+import { isPushSupported, saveSubscription, subscribeBrowser } from '@/lib/pushClient';
 
 export default function PushNotificationManager({ hideWhenSubscribed }: { hideWhenSubscribed?: boolean }) {
   const [isSupported, setIsSupported] = useState(false);
@@ -22,7 +10,7 @@ export default function PushNotificationManager({ hideWhenSubscribed }: { hideWh
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
+    if (isPushSupported()) {
       setIsSupported(true);
       registerServiceWorker();
     } else {
@@ -48,33 +36,15 @@ export default function PushNotificationManager({ hideWhenSubscribed }: { hideWh
   async function subscribeToPush() {
     try {
       setLoading(true);
-      const registration = await navigator.serviceWorker.ready;
-      
-      const pubKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      if (!pubKey) {
-        throw new Error('No public key provided.');
-      }
-
-      const sub = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(pubKey),
-      });
-
+      const sub = await subscribeBrowser();
       setSubscription(sub);
 
-      // Send to backend
-      const res = await fetch('/api/notifications/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sub),
-      });
-
-      if (res.ok) {
+      if (await saveSubscription(sub)) {
         toast.success('¡Notificaciones activadas!');
       } else {
         toast.error('Error al guardar suscripción en el servidor.');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
       toast.error('No se pudo activar las notificaciones.');
     } finally {
@@ -97,8 +67,8 @@ export default function PushNotificationManager({ hideWhenSubscribed }: { hideWh
       <div>
         <h3 className="font-semibold text-zinc-200">Notificaciones Push</h3>
         <p className="text-sm text-zinc-400">
-          {subscription 
-            ? 'Estás recibiendo notificaciones en este dispositivo.' 
+          {subscription
+            ? 'Estás recibiendo notificaciones en este dispositivo.'
             : 'Activa las notificaciones para enterarte cuando haya nuevos anuncios.'}
         </p>
       </div>

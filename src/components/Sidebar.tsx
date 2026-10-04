@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { signOut } from 'next-auth/react';
+import { signOutAndUnlinkPush } from '@/lib/pushClient';
 
 export default function Sidebar({ userRole, userName }: { userRole?: string; userName: string }) {
   const pathname = usePathname();
@@ -68,7 +68,7 @@ export default function Sidebar({ userRole, userName }: { userRole?: string; use
 
         <div className="p-4 border-t border-zinc-700">
           <button
-            onClick={() => signOut({ callbackUrl: '/auth/login' })}
+            onClick={signOutAndUnlinkPush}
             className="w-full flex items-center px-4 py-2 text-sm text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
           >
             <span className="mr-3">🚪</span>

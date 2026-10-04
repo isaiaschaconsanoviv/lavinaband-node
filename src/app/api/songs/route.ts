@@ -6,15 +6,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
 import User from '@/models/User';
-import webpush from 'web-push';
-
-if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    'mailto:info@lavinaband.com',
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
-}
+import { sendPush } from '@/lib/push';
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,23 +43,11 @@ export async function POST(req: NextRequest) {
     try {
       const admins = await User.find({ role: 'ADMIN' });
       
-      const payload = JSON.stringify({
+      await sendPush(admins, {
         title: 'Nueva Sugerencia de Canción',
         body: `${session.user?.name} ha sugerido la canción "${body.title}" de ${body.artist}.`,
         url: '/songs'
       });
-      
-      for (const admin of admins) {
-        if (admin.pushSubscriptions && admin.pushSubscriptions.length > 0) {
-          for (const sub of admin.pushSubscriptions) {
-            try {
-              await webpush.sendNotification(sub, payload);
-            } catch (e) {
-              console.error('Error sending push to admin', e);
-            }
-          }
-        }
-      }
     } catch (e) {
       console.error('Error resolving push notifications for suggestions', e);
     }

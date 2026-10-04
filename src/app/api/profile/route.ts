@@ -6,16 +6,9 @@ import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import Announcement from '@/models/Announcement';
 import bcrypt from 'bcryptjs';
-import webpush from 'web-push';
+import { sendPush } from '@/lib/push';
 import { INSTRUMENTS } from '@/lib/inEars';
 
-if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    'mailto:test@example.com',
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
-}
 
 export async function PUT(req: Request) {
   try {
@@ -42,23 +35,11 @@ export async function PUT(req: Request) {
       
       // Notify admins
       const admins = await User.find({ role: 'ADMIN' });
-      const payload = JSON.stringify({
+      await sendPush(admins, {
         title: 'Nueva Solicitud de Rol',
         body: `${user.name} ha solicitado unirse al rol de Set Lists.`,
-        url: '/admin'
+        url: '/setlist-roles'
       });
-      
-      for (const admin of admins) {
-        if (admin.pushSubscriptions && admin.pushSubscriptions.length > 0) {
-          for (const sub of admin.pushSubscriptions) {
-            try {
-              await webpush.sendNotification(sub, payload);
-            } catch (err) {
-              console.error('Push error:', err);
-            }
-          }
-        }
-      }
     } else if (optOutSetListRole) {
       updates.setListRoleStatus = 'NONE';
     }

@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       await sendPush(admins, {
         title: 'Nueva Sugerencia de Canción',
         body: `${session.user?.name} ha sugerido la canción "${body.title}" de ${body.artist}.`,
-        url: '/songs'
+        url: '/songs?sugerencias=1'
       });
     } catch (e) {
       console.error('Error resolving push notifications for suggestions', e);

@@ -26,7 +26,10 @@ export default function LoginPage() {
       setError(res.error);
       setLoading(false);
     } else {
-      router.push('/dashboard');
+      // Regresar a la página que se pidió antes del login (solo rutas internas)
+      const callbackUrl = new URLSearchParams(window.location.search).get('callbackUrl');
+      const isInternal = callbackUrl?.startsWith('/') && !callbackUrl.startsWith('//') && !callbackUrl.startsWith('/\\');
+      router.push(isInternal ? callbackUrl! : '/dashboard');
     }
   };
 

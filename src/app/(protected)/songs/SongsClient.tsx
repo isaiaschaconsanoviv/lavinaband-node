@@ -4,6 +4,7 @@ import SuggestSongModal from '@/components/songs/SuggestSongModal';
 import SongDetailsModal from '@/components/songs/SongDetailsModal';
 import SuggestionsModal from '@/components/songs/SuggestionsModal';
 import ImportMuflButton from '@/components/ImportMuflButton';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function SongsClient({ initialSongs, role }: { initialSongs: any[], role: string }) {
   const [songs, setSongs] = useState(initialSongs);
@@ -23,7 +24,15 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
 
   // Modals state
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
-  const [isSuggestionsModalOpen, setIsSuggestionsModalOpen] = useState(false);
+  // `?sugerencias=1` (enlace de la notificación de sugerencias) abre el panel para admins
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const openedFromLink = searchParams.get('sugerencias') === '1';
+  const [isSuggestionsModalOpen, setIsSuggestionsModalOpen] = useState(role === 'ADMIN' && openedFromLink);
+  const closeSuggestionsModal = () => {
+    setIsSuggestionsModalOpen(false);
+    if (openedFromLink) router.replace('/songs', { scroll: false });
+  };
   const [selectedSong, setSelectedSong] = useState<any>(null);
 
   // Filters & Sorting logic
@@ -288,7 +297,7 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
       />
       <SuggestionsModal
         isOpen={isSuggestionsModalOpen}
-        onClose={() => setIsSuggestionsModalOpen(false)}
+        onClose={closeSuggestionsModal}
         onApprove={() => window.location.reload()}
       />
       <SongDetailsModal 

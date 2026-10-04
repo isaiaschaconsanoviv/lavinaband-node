@@ -217,37 +217,6 @@ export async function changeRoleAssignment(assignmentId: string, newUserId: stri
   revalidatePath('/dashboard');
 }
 
-export async function completeRoleAssignment(assignmentId: string) {
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user?.email) throw new Error('Unauthorized');
-  
-  await dbConnect();
-  
-  const user = await User.findOne({ email: session.user.email });
-  if (!user) throw new Error('User not found');
-
-  const assignment = await RoleAssignment.findById(assignmentId);
-  if (!assignment) throw new Error('Assignment not found');
-
-  if (assignment.assignedUser.toString() !== user._id.toString() && user.role !== 'ADMIN') {
-    throw new Error('Not authorized to complete this assignment');
-  }
-
-  assignment.status = 'COMPLETED';
-  await assignment.save();
-
-  // Notify ALL users
-  const allUsers = await User.find({});
-  await sendPush(allUsers, {
-    title: 'Set List Terminado',
-    body: `${user.name} ha terminado de armar los Set Lists de esta semana.`,
-    url: '/setlist-roles'
-  });
-
-  revalidatePath('/setlist-roles');
-  revalidatePath('/dashboard');
-}
-
 export async function deleteRoleAssignment(assignmentId: string) {
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Unauthorized');

@@ -6,13 +6,16 @@ import '@/models/Song';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { rejectGuests } from '@/lib/guards';
+import { visibleSetlistsFilter } from '@/lib/setlists';
 
 export async function GET(req: NextRequest) {
   try {
     const denied = await rejectGuests();
     if (denied) return denied;
+    const session = await getServerSession(authOptions);
+    const isAdmin = (session?.user as any)?.role === 'ADMIN';
     await dbConnect();
-    const setlists = await Setlist.find().sort({ date: 1 }).populate('songs.song');
+    const setlists = await Setlist.find(visibleSetlistsFilter((session?.user as any)?.id, isAdmin)).sort({ date: 1 }).populate('songs.song');
     return NextResponse.json({ success: true, data: setlists });
   } catch (error) {
     return NextResponse.json({ success: false, error: (error as any).message || 'Server Error' }, { status: 500 });
@@ -27,9 +30,10 @@ export async function POST(req: NextRequest) {
     }
 
     await dbConnect();
-    const body = await req.json();
+    const { isReady, readyAt, ...body } = await req.json();
     const newSetlist = await Setlist.create({
       ...body,
+      isReady: false,
       createdBy: (session.user as any).id,
     });
     return NextResponse.json({ success: true, data: newSetlist }, { status: 201 });

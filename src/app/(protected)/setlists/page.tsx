@@ -4,10 +4,25 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { format, nextSunday } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useSession } from 'next-auth/react';
+
+// Etiqueta de estado: los admins la ven siempre; el resto solo ve "No listo"
+// en los set lists propios que aún no se confirman (los demás no les llegan).
+function ReadyBadge({ setlist, isAdmin }: { setlist: any; isAdmin: boolean }) {
+  const isReady = setlist.isReady !== false;
+  if (isReady && !isAdmin) return null;
+  return (
+    <span className={`shrink-0 px-2 py-0.5 border rounded-md text-[10px] font-bold uppercase tracking-wider ${isReady ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+      {isReady ? 'Listo' : 'No listo'}
+    </span>
+  );
+}
 
 export default function SetlistsPage() {
   const [setlists, setSetlists] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as any)?.role === 'ADMIN';
 
   useEffect(() => {
     fetch('/api/setlists')
@@ -79,7 +94,10 @@ export default function SetlistsPage() {
               ) : (
                 upcomingSetlists.map((setlist: any) => (
                   <Link key={setlist._id} href={`/setlists/${setlist._id}`} className="bg-zinc-900/40 p-6 rounded-xl border border-zinc-700/50 hover:bg-zinc-800/60 hover:border-blue-500/50 transition-colors group block shadow-lg">
-                    <h3 className="text-xl font-semibold text-zinc-100 group-hover:text-blue-400 transition-colors">{setlist.title}</h3>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-xl font-semibold text-zinc-100 group-hover:text-blue-400 transition-colors">{setlist.title}</h3>
+                      <ReadyBadge setlist={setlist} isAdmin={isAdmin} />
+                    </div>
                     <p className="text-zinc-400 mt-2 flex items-center gap-1.5">
                       <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                       {format(new Date(setlist.date), "EEEE, d 'de' MMMM yyyy", { locale: es })}
@@ -122,7 +140,10 @@ export default function SetlistsPage() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-4 animate-in slide-in-from-top-4 fade-in duration-300">
                   {archivedSetlists.map((setlist: any) => (
                     <Link key={setlist._id} href={`/setlists/${setlist._id}`} className="bg-zinc-900/20 p-5 rounded-xl border border-zinc-800 hover:bg-zinc-800/40 transition-colors group block opacity-80 hover:opacity-100">
-                      <h3 className="text-lg font-medium text-zinc-300 group-hover:text-white transition-colors line-clamp-1">{setlist.title}</h3>
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-lg font-medium text-zinc-300 group-hover:text-white transition-colors line-clamp-1">{setlist.title}</h3>
+                        <ReadyBadge setlist={setlist} isAdmin={isAdmin} />
+                      </div>
                       <p className="text-sm text-zinc-500 mt-1">
                         {format(new Date(setlist.date), "EEEE, d 'de' MMMM yyyy", { locale: es })}
                       </p>

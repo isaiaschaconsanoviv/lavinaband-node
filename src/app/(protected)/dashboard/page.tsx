@@ -14,6 +14,7 @@ import Announcement from '@/models/Announcement';
 import RoleSettings from '@/models/RoleSettings';
 import RoleAssignment from '@/models/RoleAssignment';
 import '@/models/User';
+import { visibleSetlistsFilter } from '@/lib/setlists';
 import PushNotificationManager from '@/components/PushNotificationManager';
 
 export default async function DashboardPage() {
@@ -28,7 +29,8 @@ export default async function DashboardPage() {
   today.setHours(0,0,0,0);
   
   const nextSetlistWithRehearsal = await Setlist.findOne({ 
-    rehearsalDate: { $gte: today } 
+    rehearsalDate: { $gte: today },
+    ...visibleSetlistsFilter((session?.user as any)?.id, role === 'ADMIN')
   }).sort({ rehearsalDate: 1 }).lean();
 
   const readingSetting = await Setting.findOne({ key: 'weeklyReading' }).lean();

@@ -8,19 +8,23 @@ import '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { rejectGuests } from '@/lib/guards';
+import { canSeeSetlist } from '@/lib/setlists';
 import { sendPush } from '@/lib/push';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const denied = await rejectGuests();
     if (denied) return denied;
+    const session = await getServerSession(authOptions);
     await dbConnect();
     const setlist = await Setlist.findById((await params).id)
       .populate('songs.song')
       .populate('attendance.user')
       .populate('createdBy', 'name')
       .populate('collaborators', 'name');
-    if (!setlist) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+    if (!setlist || !canSeeSetlist(setlist, (session?.user as any)?.id, (session?.user as any)?.role === 'ADMIN')) {
+      return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+    }
     return NextResponse.json({ success: true, data: setlist });
   } catch (error) {
     return NextResponse.json({ success: false, error: (error as any).message || 'Server Error' }, { status: 500 });
@@ -35,15 +39,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     await dbConnect();
-    const body = await req.json();
+    // El estado "listo" solo cambia con POST /api/setlists/[id]/ready (que notifica a la banda)
+    const { isReady, readyAt, ...body } = await req.json();
     const setlistId = (await params).id;
 
     const existingSetlist = await Setlist.findById(setlistId);
-    if (!existingSetlist) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+    const isAdmin = (session.user as any).role === 'ADMIN';
+    if (!existingSetlist || !canSeeSetlist(existingSetlist, (session.user as any).id, isAdmin)) {
+      return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+    }
 
     const isCreator = existingSetlist.createdBy?.toString() === (session.user as any).id;
     const isCollaborator = existingSetlist.collaborators?.map((c: any) => c.toString()).includes((session.user as any).id);
-    const isAdmin = (session.user as any).role === 'ADMIN';
     const canEdit = isCreator || isAdmin || isCollaborator;
 
     let updateData = body;

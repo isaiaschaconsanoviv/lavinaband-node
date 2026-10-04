@@ -9,7 +9,6 @@ import PendingRequests from './PendingRequests';
 import RoleControls from './RoleControls';
 import ConfirmTurnButton from './ConfirmTurnButton';
 import ChangeAssigneeButton from './ChangeAssigneeButton';
-import CompleteTurnButton from './CompleteTurnButton';
 import DeleteAssignmentButton from './DeleteAssignmentButton';
 
 export default async function SetListRolesPage() {
@@ -198,10 +197,6 @@ export default async function SetListRolesPage() {
 
                       {isAssignedToMe && assignment.status === 'PENDING' && (
                         <ConfirmTurnButton assignmentId={assignment._id} />
-                      )}
-
-                      {isAssignedToMe && assignment.status === 'CONFIRMED' && (
-                        <CompleteTurnButton assignmentId={assignment._id} />
                       )}
 
                       {isAdmin && (assignment.status === 'PENDING' || assignment.status === 'CONFIRMED') && (

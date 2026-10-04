@@ -11,6 +11,7 @@ import { DndContext, closestCenter, useSensor, useSensors, PointerSensor, TouchS
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import SongDetailsModal from '@/components/songs/SongDetailsModal';
+import toast from 'react-hot-toast';
 
 function SortableItem({ id, song, isReordering, onRemove, onUpdateSong, isAdmin, canEdit, onOpenLyrics }: { id: string, song: any, isReordering: boolean, onRemove: (id: string) => void, onUpdateSong: (id: string, updates: any) => void, isAdmin: boolean, canEdit: boolean, onOpenLyrics: (song: any) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
@@ -110,6 +111,8 @@ export default function SetlistDetailPage() {
   const [setlist, setSetlist] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showReadyModal, setShowReadyModal] = useState(false);
+  const [markingReady, setMarkingReady] = useState(false);
   const [showCollaboratorsModal, setShowCollaboratorsModal] = useState(false);
   const [allSongs, setAllSongs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,6 +147,22 @@ export default function SetlistDetailPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedData)
     });
+  };
+
+  const confirmReady = async () => {
+    setShowReadyModal(false);
+    setMarkingReady(true);
+    try {
+      const res = await fetch(`/api/setlists/${params.id}/ready`, { method: 'POST' });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      setSetlist((prev: any) => ({ ...prev, ...data.data }));
+      toast.success('¡Set list listo! Se notificó a la banda');
+    } catch (e: any) {
+      toast.error(e.message || 'Error al marcar el set list como listo');
+    } finally {
+      setMarkingReady(false);
+    }
   };
 
   const confirmDelete = async () => {
@@ -221,6 +240,9 @@ export default function SetlistDetailPage() {
   const isCollaborator = setlist.collaborators?.some((c: any) => c._id === currentUserId);
   const canEdit = isAdmin || isCreator || isCollaborator;
   const canManageCollaborators = isAdmin || isCreator;
+  // Los set lists anteriores a esta función no tienen `isReady` y se consideran listos
+  const isReady = setlist.isReady !== false;
+  const canMarkReady = !isReady && (isCreator || isAdmin);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
@@ -235,6 +257,14 @@ export default function SetlistDetailPage() {
             disabled={!canEdit}
           />
           <div className="flex flex-wrap items-center gap-2 mb-4">
+            {(!isReady || isAdmin) && (
+              <span
+                className={`px-2 py-0.5 border rounded-md text-[10px] font-bold uppercase tracking-wider ${isReady ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}
+                title={isReady ? 'Visible para toda la banda' : 'Solo lo ven su creador, colaboradores y administradores'}
+              >
+                {isReady ? 'Listo' : 'No listo'}
+              </span>
+            )}
             {setlist.createdBy && setlist.createdBy.name && (
               <p className="text-zinc-500 text-sm flex items-center gap-2">
                 Creado por <span className="text-zinc-300 font-medium">{setlist.createdBy.name}</span>
@@ -288,6 +318,15 @@ export default function SetlistDetailPage() {
         </div>
         {canEdit && (
           <div className="flex flex-wrap justify-end gap-3 w-full sm:w-auto">
+            {canMarkReady && (
+              <button
+                onClick={() => setShowReadyModal(true)}
+                disabled={markingReady}
+                className="w-full sm:w-auto px-4 py-2 bg-green-600/90 hover:bg-green-500 rounded-lg text-white font-medium shadow-lg shadow-green-900/20 transition-colors disabled:opacity-50"
+              >
+                {markingReady ? 'Notificando...' : 'Confirmar Set List'}
+              </button>
+            )}
 
             {canManageCollaborators && (
               <button onClick={deleteSetlist} className="flex-1 sm:flex-none px-4 py-2 bg-red-900/40 hover:bg-red-600/80 text-red-400 hover:text-white border border-red-900/50 hover:border-red-600 rounded-lg font-medium transition-colors">
@@ -310,6 +349,16 @@ export default function SetlistDetailPage() {
         onConfirm={confirmDelete}
         onCancel={() => setShowDeleteModal(false)}
         isDanger={true}
+      />
+
+      <ConfirmModal
+        isOpen={showReadyModal}
+        title="Confirmar Set List"
+        message="¿Ya está listo este set list? Al confirmar, toda la banda podrá verlo y se le enviará una notificación."
+        confirmText="Sí, notificar"
+        cancelText="Todavía no"
+        onConfirm={confirmReady}
+        onCancel={() => setShowReadyModal(false)}
       />
 
       <SongDetailsModal

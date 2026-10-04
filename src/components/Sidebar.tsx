@@ -1,10 +1,18 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { SIDEBAR_COOKIE } from '@/lib/sidebar';
 import { signOutAndUnlinkPush } from '@/lib/pushClient';
 
-export default function Sidebar({ userRole, userName }: { userRole?: string; userName: string }) {
+export default function Sidebar({ userRole, userName, initialCollapsed = false }: { userRole?: string; userName: string; initialCollapsed?: boolean }) {
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
+
+  const toggleCollapsed = (value: boolean) => {
+    setCollapsed(value);
+    document.cookie = `${SIDEBAR_COOKIE}=${value ? '1' : '0'}; path=/; max-age=31536000; samesite=lax`;
+  };
 
   const allNavItems = [
     { name: 'Inicio', path: '/dashboard', icon: '🏠' },
@@ -26,15 +34,38 @@ export default function Sidebar({ userRole, userName }: { userRole?: string; use
 
   return (
     <>
+      {/* DESKTOP: con el menú oculto queda una franja angosta con el botón para mostrarlo */}
+      {collapsed && (
+        <div className="hidden md:flex w-14 shrink-0 flex-col items-center pt-6 border-r border-zinc-800 bg-zinc-950/80 h-screen sticky top-0">
+          <button
+            onClick={() => toggleCollapsed(false)}
+            className="flex items-center justify-center w-10 h-10 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+            title="Mostrar menú"
+            aria-label="Mostrar menú"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+          </button>
+        </div>
+      )}
+
       {/* DESKTOP SIDEBAR */}
-      <aside className="hidden md:flex w-64 bg-zinc-950/80 backdrop-blur-md border-r border-zinc-700 flex-col justify-between h-screen sticky top-0">
-        <div>
+      <aside className={`${collapsed ? 'hidden' : 'hidden md:flex'} w-64 shrink-0 bg-zinc-950/80 backdrop-blur-md border-r border-zinc-700 flex-col justify-between h-screen sticky top-0`}>
+        {/* Si la pantalla es baja, esta parte se desplaza y "Cerrar Sesión" queda fijo abajo */}
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-4">
           <div className="p-6">
             <div className="flex items-center gap-3">
               <img src="/logo.png" alt="La Viña Band Logo" className="w-10 h-10 object-contain drop-shadow-md" />
-              <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+              <h1 className="flex-1 text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
                 La Viña Band
               </h1>
+              <button
+                onClick={() => toggleCollapsed(true)}
+                className="-mr-2 p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
+                title="Ocultar menú"
+                aria-label="Ocultar menú"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+              </button>
             </div>
             <p className="text-sm text-zinc-400 mt-1">Hola, {userName}</p>
             <span className="inline-block px-2 py-1 mt-2 text-xs font-semibold rounded-full bg-zinc-700 text-zinc-300">
@@ -66,7 +97,7 @@ export default function Sidebar({ userRole, userName }: { userRole?: string; use
           </nav>
         </div>
 
-        <div className="p-4 border-t border-zinc-700">
+        <div className="p-4 border-t border-zinc-700 shrink-0">
           <button
             onClick={signOutAndUnlinkPush}
             className="w-full flex items-center px-4 py-2 text-sm text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"

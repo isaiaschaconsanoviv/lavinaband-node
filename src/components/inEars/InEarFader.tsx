@@ -11,6 +11,9 @@ interface InEarFaderProps {
   // Ícono junto al nombre del canal (por ejemplo, 🎤 para el Pastor)
   icon?: string;
   value: number;
+  // Nivel que el ingeniero ya aplicó en la consola. Si difiere de `value`, la diferencia
+  // se muestra en naranja hasta que lo aplique. Si no se indica, todo está aplicado.
+  appliedValue?: number;
   onChange: (value: number) => void;
   color?: string;
   disabled?: boolean;
@@ -23,20 +26,32 @@ interface InEarFaderProps {
 const ZERO_INDEX = IN_EAR_LEVELS.indexOf(0);
 
 const LIT_CLASS = 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]';
+// Pendiente de aplicar: subir (cuadritos que se van a encender) y bajar (los que se van a apagar)
+const PENDING_UP_CLASS = 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.5)]';
+const PENDING_DOWN_CLASS = 'bg-amber-400/30 ring-1 ring-inset ring-amber-400/70';
 const STEP_BUTTON_CLASS = 'w-9 h-9 shrink-0 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 font-bold transition-colors disabled:opacity-40';
 
 // Fader estilo medidor de consola: un cuadrito por posición (-15, -12, -10 ... +15) que se
 // ilumina en verde desde -15 hasta el valor actual. En celular y tablet es horizontal; en
 // pantallas grandes (lg) es una tira vertical con -15 abajo y +15 arriba, como en la consola.
-export default function InEarFader({ label, title, member, icon, value: rawValue, onChange, color, disabled = false, size = 'normal', handle }: InEarFaderProps) {
+export default function InEarFader({ label, title, member, icon, value: rawValue, appliedValue, onChange, color, disabled = false, size = 'normal', handle }: InEarFaderProps) {
   const value = clampLevel(rawValue);
+  const applied = clampLevel(appliedValue ?? rawValue);
+  const isPending = applied !== value;
   const index = IN_EAR_LEVELS.indexOf(value);
   const isLarge = size === 'large';
-  const segmentClass = (level: number) =>
-    level <= value ? LIT_CLASS : level === 0 ? 'bg-zinc-600' : 'bg-zinc-800';
+  // Verde hasta lo aplicado; naranja entre lo aplicado y lo pedido
+  const segmentClass = (level: number) => {
+    if (level <= Math.min(value, applied)) return LIT_CLASS;
+    if (level <= Math.max(value, applied)) return value > applied ? PENDING_UP_CLASS : PENDING_DOWN_CLASS;
+    return level === 0 ? 'bg-zinc-600' : 'bg-zinc-800';
+  };
 
   const valueLabel = (
-    <span className={`font-mono font-bold tabular-nums ${isLarge ? 'text-xl' : 'text-base'} ${value === 0 ? 'text-zinc-400' : 'text-white'}`}>
+    <span
+      className={`font-mono font-bold tabular-nums ${isLarge ? 'text-xl' : 'text-base'} ${isPending ? 'text-amber-400' : value === 0 ? 'text-zinc-400' : 'text-white'}`}
+      title={isPending ? `Pendiente: el ingeniero aún no aplica el cambio (en consola: ${formatLevel(applied)})` : undefined}
+    >
       {formatLevel(value)}
     </span>
   );

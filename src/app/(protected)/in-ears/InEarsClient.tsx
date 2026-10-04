@@ -15,8 +15,15 @@ const SEND_DELAY_MS = 3000;
 
 type Status = 'idle' | 'pending' | 'sending' | 'sent' | 'error';
 
+// Cada cuánto se revisa si el ingeniero ya aplicó los cambios pendientes
+const APPLIED_POLL_MS = 5000;
+// Tiempo que se muestra "✓ Enviado" antes de ocultarse
+const SENT_LABEL_MS = 5000;
+
 interface Mix {
   levels: Record<string, number>;
+  // Niveles ya aplicados en la consola (lo que difiere de `levels` está pendiente)
+  applied?: Record<string, number>;
   order: string[];
 }
 
@@ -52,6 +59,7 @@ const STRIP_CLASS = 'lg:shrink-0';
 export default function InEarsClient({ actorId, canManage, isSoundEngineer, channels, performers, initialOwnerId, initialMix, allowReorder = true }: InEarsClientProps) {
   const [ownerId, setOwnerId] = useState(initialOwnerId);
   const [levels, setLevels] = useState<Record<string, number>>(initialMix.levels);
+  const [applied, setApplied] = useState<Record<string, number>>(initialMix.applied ?? initialMix.levels);
   const [order, setOrder] = useState<string[]>(initialMix.order);
   const [status, setStatus] = useState<Status>('idle');
   const [isReordering, setIsReordering] = useState(false);
@@ -60,9 +68,10 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
   // Panel colapsable de mezclas (solo para el ingeniero que no canta ni toca)
   const [isMixPanelOpen, setIsMixPanelOpen] = useState(false);
 
-  // Cambios aún no enviados y temporizador del envío
+  // Cambios aún no enviados, temporizador del envío y si hay un envío en curso
   const pendingRef = useRef<Record<string, number>>({});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sendingRef = useRef(false);
   const ownerRef = useRef(ownerId);
   useEffect(() => {
     ownerRef.current = ownerId;
@@ -84,6 +93,7 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
     if (!owner || Object.keys(pending).length === 0) return;
 
     pendingRef.current = {};
+    sendingRef.current = true;
     setStatus('sending');
     try {
       const res = await fetch(`/api/in-ears/${owner}`, {
@@ -92,13 +102,17 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
         body: JSON.stringify({ levels: pending })
       });
       if (!res.ok) throw new Error();
+      // Lo que mueve el ingeniero en la mezcla de otro queda aplicado de una vez
+      if (owner !== actorId) setApplied(prev => ({ ...prev, ...pending }));
       setStatus('sent');
     } catch {
       // Conservar los cambios para reintentarlos en el siguiente envío
       pendingRef.current = { ...pending, ...pendingRef.current };
       setStatus('error');
+    } finally {
+      sendingRef.current = false;
     }
-  }, []);
+  }, [actorId]);
 
   // Si se cierra o se oculta la página antes de los 3 segundos, enviar lo pendiente
   const flushWithBeacon = useCallback(() => {
@@ -123,6 +137,13 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
     };
   }, [flushWithBeacon]);
 
+  // El aviso "✓ Enviado" se oculta solo después de unos segundos
+  useEffect(() => {
+    if (status !== 'sent') return;
+    const timeout = setTimeout(() => setStatus('idle'), SENT_LABEL_MS);
+    return () => clearTimeout(timeout);
+  }, [status]);
+
   const setLevel = (channel: string, value: number) => {
     setLevels(prev => ({ ...prev, [channel]: value }));
     pendingRef.current = { ...pendingRef.current, [channel]: value };
@@ -142,6 +163,7 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
       if (!data.success) throw new Error();
       setOwnerId(newOwnerId);
       setLevels(data.data.levels);
+      setApplied(data.data.applied ?? data.data.levels);
       setOrder(data.data.order);
       setStatus('idle');
     } catch {
@@ -150,6 +172,39 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
       setIsLoadingMix(false);
     }
   };
+
+  // Hay cambios que el ingeniero aún no aplica en la consola
+  const hasPendingApply = useMemo(() => {
+    const ids = new Set([...Object.keys(levels), ...Object.keys(applied)]);
+    return [...ids].some(id => (levels[id] ?? 0) !== (applied[id] ?? 0));
+  }, [levels, applied]);
+
+  // Mientras haya cambios pendientes, revisar cada cierto tiempo si el ingeniero ya los
+  // aplicó (los cuadritos pasan de naranja a verde sin recargar la página)
+  useEffect(() => {
+    if (!ownerId || !hasPendingApply) return;
+    const refresh = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const res = await fetch(`/api/in-ears/${ownerId}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (!data.success || ownerRef.current !== ownerId) return;
+        setApplied(data.data.applied ?? data.data.levels);
+        // Los niveles pedidos solo se toman del servidor si no hay cambios locales sin enviar
+        if (!sendingRef.current && !timerRef.current && Object.keys(pendingRef.current).length === 0) {
+          setLevels(data.data.levels);
+        }
+      } catch {
+        // Se reintenta en la siguiente revisión
+      }
+    };
+    const interval = setInterval(refresh, APPLIED_POLL_MS);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [ownerId, hasPendingApply]);
 
   // Desde "Cambios recientes": abrir la mezcla de quien pidió el cambio y llevar la vista a los faders
   const selectMixFromChange = (mixOwnerId: string) => {
@@ -203,7 +258,14 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
 
   const mixControls = ownerId && (
     <>
-      <div ref={mixTopRef} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 scroll-mt-24">
+      <div ref={mixTopRef} className="space-y-3 scroll-mt-24">
+      {/* Leyenda de colores, siempre visible arriba del selector */}
+      <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-400">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-[2px] bg-amber-400" />Pendiente: el ingeniero aún no lo aplica en la consola</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-[2px] bg-emerald-400" />Aplicado</span>
+      </p>
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {canManage ? (
           <div className="w-full sm:w-72">
             <CustomSelect
@@ -218,8 +280,9 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
           <h2 className="text-lg font-semibold text-zinc-200">Mi mezcla</h2>
         )}
 
-        <div className="flex items-center gap-3 justify-between sm:justify-end">
-          <span className={`text-sm font-medium ${statusColor[status]}`}>{statusLabel[status]}</span>
+        {/* Altura reservada para el estado: que aparezca o cambie no mueve los faders */}
+        <div className="flex items-center gap-3 justify-between sm:justify-end min-h-5">
+          <span className={`text-sm leading-5 font-medium truncate ${statusColor[status]}`}>{statusLabel[status]}</span>
           {allowReorder && (
           <button
             type="button"
@@ -231,6 +294,7 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
           </button>
           )}
         </div>
+      </div>
       </div>
 
       {/* Celular: faders uno debajo del otro. Pantallas grandes: tiras verticales lado a lado como en la consola */}
@@ -245,6 +309,7 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
                   label="🎧 Volumen general"
                   size="large"
                   value={levels[MASTER_CHANNEL] ?? 0}
+                  appliedValue={applied[MASTER_CHANNEL] ?? 0}
                   onChange={v => setLevel(MASTER_CHANNEL, v)}
                   disabled={isReordering}
                 />
@@ -260,6 +325,7 @@ export default function InEarsClient({ actorId, canManage, isSoundEngineer, chan
                       icon={channel.icon}
                       color={channel.color}
                       value={levels[channel.id] ?? 0}
+                      appliedValue={applied[channel.id] ?? 0}
                       onChange={v => setLevel(channel.id, v)}
                       disabled={isReordering}
                       handle={handle}

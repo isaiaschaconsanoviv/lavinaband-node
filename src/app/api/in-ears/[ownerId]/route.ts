@@ -6,7 +6,7 @@ import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import InEarMix from '@/models/InEarMix';
 import InEarChange from '@/models/InEarChange';
-import { getInEarActor, loadBandMembers, loadMix } from '@/lib/inEarsServer';
+import { getInEarActor, loadBandMembers, loadMix, markLevelsApplied } from '@/lib/inEarsServer';
 import { MASTER_CHANNEL, buildChannels, clampLevel, formatStepChange, isPerformer } from '@/lib/inEars';
 
 
@@ -54,8 +54,9 @@ async function saveMix(req: NextRequest, { params }: Params) {
     labels.set(MASTER_CHANNEL, 'Volumen general');
 
     await dbConnect();
-    const mix = await InEarMix.findOne({ owner: ownerId }).lean<{ levels?: Record<string, number> }>();
+    const mix = await InEarMix.findOne({ owner: ownerId }).lean<{ levels?: Record<string, number>; appliedLevels?: Record<string, number> }>();
     const currentLevels: Record<string, number> = mix?.levels ?? {};
+    const isOwnMix = actor.id === ownerId;
     const update: Record<string, unknown> = {};
     const changes: { channel: string; label: string; from: number; to: number }[] = [];
 
@@ -78,13 +79,29 @@ async function saveMix(req: NextRequest, { params }: Params) {
       return NextResponse.json({ success: true, data: { changes: [] } });
     }
 
+    // El primer cambio propio fija lo aplicado hasta ahora (antes todo se consideraba
+    // aplicado), para que lo nuevo quede pendiente hasta que el ingeniero lo aplique
+    if (isOwnMix && changes.length > 0 && !mix?.appliedLevels) {
+      update.appliedLevels = { ...currentLevels };
+    }
+
     await InEarMix.updateOne({ owner: ownerId }, { $set: update }, { upsert: true });
 
     if (changes.length > 0) {
-      await InEarChange.create({ mix: ownerId, changedBy: actor.id, changes });
+      // Lo que mueve un ingeniero (o admin) en la mezcla de otro ya está en la consola:
+      // queda aplicado de una vez
+      await InEarChange.create({
+        mix: ownerId,
+        changedBy: actor.id,
+        changes,
+        ...(isOwnMix ? {} : { appliedAt: new Date(), appliedBy: actor.id }),
+      });
+      if (!isOwnMix) {
+        await markLevelsApplied(ownerId, Object.fromEntries(changes.map(c => [c.channel, c.to])));
+      }
 
       // Los ajustes que hace un ingeniero en la mezcla de otro no se notifican
-      if (actor.id === ownerId) {
+      if (isOwnMix) {
         const engineers = await User.find({ isSoundEngineer: true, _id: { $ne: actor.id } }).select('pushSubscriptions notificationPrefs');
         await sendPush('inEars', engineers, {
           title: `🎧 In-Ears · ${owner.name}`,

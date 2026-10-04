@@ -56,6 +56,19 @@ export async function loadChannels() {
 
 export async function loadMix(ownerId: string) {
   await dbConnect();
-  const mix = await InEarMix.findOne({ owner: ownerId }).lean<{ levels?: Record<string, number>; order?: string[] }>();
-  return { levels: mix?.levels ?? {}, order: mix?.order ?? [] };
+  const mix = await InEarMix.findOne({ owner: ownerId }).lean<{ levels?: Record<string, number>; appliedLevels?: Record<string, number>; order?: string[] }>();
+  const levels = mix?.levels ?? {};
+  // Sin `appliedLevels` (mezclas anteriores a esta función) todo se considera aplicado
+  return { levels, applied: mix?.appliedLevels ?? levels, order: mix?.order ?? [] };
+}
+
+// Marca como aplicados en la consola los niveles indicados de la mezcla de `ownerId`
+export async function markLevelsApplied(ownerId: string, levels: Record<string, number>) {
+  if (Object.keys(levels).length === 0) return;
+  await dbConnect();
+  const mix = await InEarMix.findOne({ owner: ownerId }).lean<{ levels?: Record<string, number>; appliedLevels?: Record<string, number> }>();
+  if (!mix) return;
+  // La primera vez se parte de los niveles actuales (antes todo se consideraba aplicado)
+  const applied = { ...(mix.appliedLevels ?? mix.levels ?? {}), ...levels };
+  await InEarMix.updateOne({ owner: ownerId }, { $set: { appliedLevels: applied } });
 }

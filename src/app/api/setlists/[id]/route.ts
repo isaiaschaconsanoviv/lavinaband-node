@@ -19,6 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     await dbConnect();
     const setlist = await Setlist.findById((await params).id)
       .populate('songs.song')
+      .populate('songs.singers', 'name roleColor')
       .populate('attendance.user')
       .populate('createdBy', 'name')
       .populate('collaborators', 'name');
@@ -63,8 +64,34 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
+    // Quién canta cada canción: solo miembros marcados como voz. Se conservan los que
+    // ya estaban asignados a esa canción aunque después los hayan desmarcado.
+    if (Array.isArray(updateData.songs)) {
+      const refId = (ref: any) => String(ref?._id ?? ref);
+      const previous = new Map<string, Set<string>>(
+        (existingSetlist.songs || []).map((s: any) => [refId(s.song), new Set<string>((s.singers || []).map(refId))])
+      );
+      updateData.songs = updateData.songs.map((s: any) => ({
+        ...s,
+        singers: [...new Set<string>((s.singers || []).map(refId))],
+      }));
+      const requested = [...new Set<string>(updateData.songs.flatMap((s: any) => s.singers))];
+      if (requested.some(id => !mongoose.isValidObjectId(id))) {
+        return NextResponse.json({ success: false, error: 'Cantante inválido' }, { status: 400 });
+      }
+      const vocalists = await mongoose.models.User.find({ _id: { $in: requested }, isVocalist: true }).select('_id').lean();
+      const vocalistIds = new Set(vocalists.map((u: any) => u._id.toString()));
+      const invalid = updateData.songs.some((s: any) =>
+        s.singers.some((id: string) => !vocalistIds.has(id) && !previous.get(refId(s.song))?.has(id))
+      );
+      if (invalid) {
+        return NextResponse.json({ success: false, error: 'Solo se pueden asignar miembros marcados como voz' }, { status: 400 });
+      }
+    }
+
     const setlist = await Setlist.findByIdAndUpdate(setlistId, updateData, { new: true, runValidators: true })
       .populate('songs.song')
+      .populate('songs.singers', 'name roleColor')
       .populate('attendance.user')
       .populate('createdBy', 'name')
       .populate('collaborators', 'name');

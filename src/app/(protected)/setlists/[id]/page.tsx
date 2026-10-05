@@ -14,7 +14,7 @@ import SongDetailsModal from '@/components/songs/SongDetailsModal';
 import InEarQuickAccess from '@/components/inEars/InEarQuickAccess';
 import toast from 'react-hot-toast';
 
-function SortableItem({ id, song, isReordering, onRemove, onUpdateSong, isAdmin, canEdit, onOpenLyrics }: { id: string, song: any, isReordering: boolean, onRemove: (id: string) => void, onUpdateSong: (id: string, updates: any) => void, isAdmin: boolean, canEdit: boolean, onOpenLyrics: (song: any) => void }) {
+function SortableItem({ id, song, singers, isReordering, onRemove, onUpdateSong, isAdmin, canEdit, onOpenLyrics, onEditSingers }: { id: string, song: any, singers: any[], isReordering: boolean, onRemove: (id: string) => void, onUpdateSong: (id: string, updates: any) => void, isAdmin: boolean, canEdit: boolean, onOpenLyrics: (song: any) => void, onEditSingers: (id: string) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition };
   
@@ -70,6 +70,25 @@ function SortableItem({ id, song, isReordering, onRemove, onUpdateSong, isAdmin,
           )}
         </div>
         <p className="text-sm text-zinc-400 mt-0.5">{song.artist} • {song.key || '-'}</p>
+
+        {(singers.length > 0 || (canEdit && !isReordering)) && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {singers.map((singer: any) => (
+              <span key={singer._id} className="text-xs font-medium px-2 py-0.5 rounded-full border" style={{ borderColor: singer.roleColor || '#71717a', backgroundColor: `${singer.roleColor || '#71717a'}1A`, color: singer.roleColor || '#a1a1aa' }}>
+                🎤 {singer.name?.trim().split(/\s+/)[0]}
+              </span>
+            ))}
+            {canEdit && !isReordering && (
+              <button
+                onClick={() => onEditSingers(id)}
+                className="text-xs px-2 py-0.5 rounded-full border border-dashed border-zinc-600 text-zinc-400 hover:text-white hover:border-zinc-400 transition-colors"
+                title="Elegir quién canta"
+              >
+                {singers.length > 0 ? 'Editar' : '🎤 ¿Quién canta?'}
+              </button>
+            )}
+          </div>
+        )}
         
         {isEditingYt && (
           <div className="mt-3 flex gap-2">
@@ -121,6 +140,7 @@ export default function SetlistDetailPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isReordering, setIsReordering] = useState(false);
   const [selectedLyricsSong, setSelectedLyricsSong] = useState<any>(null);
+  const [singersSongId, setSingersSongId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!params?.id) return;
@@ -143,7 +163,7 @@ export default function SetlistDetailPage() {
 
   const saveSetlist = async (updatedData: any) => {
     setSetlist(updatedData);
-    await fetch(`/api/setlists/${params.id}`, {
+    return fetch(`/api/setlists/${params.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedData)
@@ -226,6 +246,25 @@ export default function SetlistDetailPage() {
     setShowSelector(false);
   };
 
+  const toggleSinger = async (songId: string, user: any) => {
+    const previous = setlist;
+    const newSongs = setlist.songs.map((s: any) => {
+      if (s.song._id !== songId) return s;
+      const current = s.singers || [];
+      const isSinging = current.some((c: any) => (c._id || c) === user._id);
+      return {
+        ...s,
+        singers: isSinging ? current.filter((c: any) => (c._id || c) !== user._id) : [...current, { _id: user._id, name: user.name, roleColor: user.roleColor }],
+      };
+    });
+    const res = await saveSetlist({ ...setlist, songs: newSongs });
+    if (!res.ok) {
+      setSetlist(previous);
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error || 'No se pudo guardar quién canta');
+    }
+  };
+
   const removeSong = (songId: string) => {
     const newSongs = setlist.songs.filter((s: any) => s.song._id !== songId);
     newSongs.forEach((s: any, idx: number) => s.order = idx);
@@ -244,6 +283,15 @@ export default function SetlistDetailPage() {
   // Los set lists anteriores a esta función no tienen `isReady` y se consideran listos
   const isReady = setlist.isReady !== false;
   const canMarkReady = !isReady && (isCreator || isAdmin);
+  // Opciones para "¿Quién canta?": miembros marcados como voz, más los que ya estaban
+  // asignados a la canción aunque después los hayan desmarcado (para poder quitarlos)
+  const singersItem = singersSongId ? setlist.songs.find((s: any) => s.song._id === singersSongId) : null;
+  const singerOptions = singersItem
+    ? [
+        ...users.filter((u: any) => u.isVocalist),
+        ...(singersItem.singers || []).filter((c: any) => c._id && !users.some((u: any) => u._id === c._id && u.isVocalist)),
+      ]
+    : [];
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
@@ -397,7 +445,7 @@ export default function SetlistDetailPage() {
               <SortableContext items={setlist.songs.map((s:any) => s.song._id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
                   {setlist.songs.map((item: any) => (
-                    <SortableItem key={item.song._id} id={item.song._id} song={item.song} isReordering={isReordering && canEdit} onRemove={canEdit ? removeSong : () => {}} onUpdateSong={updateSongInSetlist} isAdmin={isAdmin} canEdit={canEdit} onOpenLyrics={setSelectedLyricsSong} />
+                    <SortableItem key={item.song._id} id={item.song._id} song={item.song} singers={item.singers || []} onEditSingers={setSingersSongId} isReordering={isReordering && canEdit} onRemove={canEdit ? removeSong : () => {}} onUpdateSong={updateSongInSetlist} isAdmin={isAdmin} canEdit={canEdit} onOpenLyrics={setSelectedLyricsSong} />
                   ))}
                 </div>
               </SortableContext>
@@ -460,6 +508,37 @@ export default function SetlistDetailPage() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {singersItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setSingersSongId(null)}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl relative max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setSingersSongId(null)} className="absolute top-4 right-4 text-zinc-500 hover:text-white">✕</button>
+            <h3 className="text-xl font-bold text-white mb-1 pr-6">¿Quién canta?</h3>
+            <p className="text-sm text-zinc-400 mb-4">{singersItem.song.title}</p>
+            {singerOptions.length === 0 ? (
+              <p className="text-sm text-zinc-500">Aún no hay miembros marcados como voz. Se marca en el Perfil (sección In-Ears) o en Usuarios.</p>
+            ) : (
+              <div className="space-y-2 overflow-y-auto custom-scrollbar pr-2">
+                {singerOptions.map((u: any) => {
+                  const isSinging = (singersItem.singers || []).some((c: any) => (c._id || c) === u._id);
+                  return (
+                    <button
+                      key={u._id}
+                      onClick={() => toggleSinger(singersItem.song._id, u)}
+                      className={`w-full flex justify-between items-center p-3 rounded-lg border transition-colors text-left ${isSinging ? 'bg-blue-600/15 border-blue-500/50' : 'bg-zinc-800/50 border-zinc-700/50 hover:border-zinc-500'}`}
+                    >
+                      <span className={isSinging ? 'font-medium' : ''} style={{ color: u.roleColor || '#a1a1aa' }}>🎤 {u.name}</span>
+                      <span className={`w-6 h-6 rounded flex items-center justify-center border ${isSinging ? 'bg-blue-600 border-blue-500' : 'bg-zinc-800 border-zinc-600'}`}>
+                        {isSinging && <span className="text-white text-sm font-bold">✓</span>}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

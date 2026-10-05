@@ -11,7 +11,7 @@ export async function GET() {
     if ((session.user as any).role === 'GUEST') return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     await dbConnect();
-    const users = await User.find({}).select('name email role').lean();
+    const users = await User.find({}).select('name email role isVocalist roleColor').lean();
     return NextResponse.json({ success: true, data: users });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Server Error' }, { status: 500 });

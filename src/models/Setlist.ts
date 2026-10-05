@@ -6,7 +6,9 @@ const SetlistSchema = new mongoose.Schema({
   rehearsalDate: { type: Date },
   songs: [{
     song: { type: mongoose.Schema.Types.ObjectId, ref: 'Song' },
-    order: { type: Number }
+    order: { type: Number },
+    // Quién canta la canción (solo usuarios marcados como voz, validado en PUT /api/setlists/[id])
+    singers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
   }],
   notes: { type: String },
   attendance: [{

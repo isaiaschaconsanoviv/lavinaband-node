@@ -10,6 +10,10 @@ import RoleControls from './RoleControls';
 import ConfirmTurnButton from './ConfirmTurnButton';
 import ChangeAssigneeButton from './ChangeAssigneeButton';
 import DeleteAssignmentButton from './DeleteAssignmentButton';
+import RoleViews from './RoleViews';
+import RoleCalendar from './RoleCalendar';
+import Setlist from '@/models/Setlist';
+import { visibleSetlistsFilter } from '@/lib/setlists';
 
 export default async function SetListRolesPage() {
   const session = await getServerSession(authOptions);
@@ -60,6 +64,17 @@ export default async function SetListRolesPage() {
   // se comparan como 'YYYY-MM-DD' contra el día de hoy en la zona horaria de la banda.
   const BAND_TIMEZONE = 'America/Tijuana';
   const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: BAND_TIMEZONE }).format(new Date());
+
+  // Set lists de eventos especiales para el calendario (solo los que esta persona puede ver).
+  // Su fecha es un instante: se pasa a día de calendario en la zona horaria de la banda.
+  const rawSpecials = await Setlist.find({ isSpecialEvent: true, ...visibleSetlistsFilter((session?.user as any)?.id, isAdmin) })
+    .select('title date')
+    .lean<{ _id: { toString(): string }; title: string; date: Date }[]>();
+  const specialEvents = rawSpecials.map(s => ({
+    _id: s._id.toString(),
+    title: s.title,
+    dayKey: new Intl.DateTimeFormat('en-CA', { timeZone: BAND_TIMEZONE }).format(s.date),
+  }));
   const toDayKey = (iso: string, offsetDays = 0) =>
     new Date(new Date(iso).getTime() + offsetDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
@@ -129,6 +144,9 @@ export default async function SetListRolesPage() {
                 {isAdmin && <p className="text-sm text-zinc-600">Inicia la rotación para generar las próximas semanas.</p>}
               </div>
             ) : (
+              <RoleViews
+                calendar={<RoleCalendar assignments={assignments.map(a => ({ _id: a._id, sundayDate: a.sundayDate, thursdayDate: a.thursdayDate, assignedUser: { name: a.assignedUser.name, roleColor: a.assignedUser.roleColor } }))} specialEvents={specialEvents} todayKey={todayKey} />}
+                cards={
               <div className="space-y-8">
               {activeAssignments.length === 0 ? (
                 <div className="text-center py-12 border-2 border-dashed border-zinc-800 rounded-xl bg-zinc-900/30">
@@ -265,6 +283,8 @@ export default async function SetListRolesPage() {
                 </details>
               )}
               </div>
+                }
+              />
             )}
           </div>
         )}

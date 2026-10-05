@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { format, nextSunday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useSession } from 'next-auth/react';
+import { DEFAULT_USER_COLOR } from '@/lib/userColors';
 
 // Etiqueta de estado: los admins la ven siempre; el resto solo ve "No listo"
 // en los set lists propios que aún no se confirman (los demás no les llegan).
@@ -16,6 +17,13 @@ function ReadyBadge({ setlist, isAdmin }: { setlist: any; isAdmin: boolean }) {
       {isReady ? 'Listo' : 'No listo'}
     </span>
   );
+}
+
+// Borde de la tarjeta con "Mi color" de quien creó el set list (sin color → borde normal)
+function creatorBorder(setlist: any, alpha = '') {
+  const color = setlist.createdBy?.roleColor;
+  if (!color || color === DEFAULT_USER_COLOR) return undefined;
+  return { borderColor: `${color}${alpha}` };
 }
 
 export default function SetlistsPage() {
@@ -93,7 +101,7 @@ export default function SetlistsPage() {
                 </div>
               ) : (
                 upcomingSetlists.map((setlist: any) => (
-                  <Link key={setlist._id} href={`/setlists/${setlist._id}`} className="bg-zinc-900/40 p-6 rounded-xl border border-zinc-700/50 hover:bg-zinc-800/60 hover:border-blue-500/50 transition-colors group block shadow-lg">
+                  <Link key={setlist._id} href={`/setlists/${setlist._id}`} style={creatorBorder(setlist)} className="bg-zinc-900/40 p-6 rounded-xl border border-zinc-700/50 hover:bg-zinc-800/60 hover:border-blue-500/50 transition-colors group block shadow-lg">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="text-xl font-semibold text-zinc-100 group-hover:text-blue-400 transition-colors">{setlist.title}</h3>
                       <ReadyBadge setlist={setlist} isAdmin={isAdmin} />
@@ -139,7 +147,7 @@ export default function SetlistsPage() {
               {showArchived && (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-4 animate-in slide-in-from-top-4 fade-in duration-300">
                   {archivedSetlists.map((setlist: any) => (
-                    <Link key={setlist._id} href={`/setlists/${setlist._id}`} className="bg-zinc-900/20 p-5 rounded-xl border border-zinc-800 hover:bg-zinc-800/40 transition-colors group block opacity-80 hover:opacity-100">
+                    <Link key={setlist._id} href={`/setlists/${setlist._id}`} style={creatorBorder(setlist, '80')} className="bg-zinc-900/20 p-5 rounded-xl border border-zinc-800 hover:bg-zinc-800/40 transition-colors group block opacity-80 hover:opacity-100">
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="text-lg font-medium text-zinc-300 group-hover:text-white transition-colors line-clamp-1">{setlist.title}</h3>
                         <ReadyBadge setlist={setlist} isAdmin={isAdmin} />

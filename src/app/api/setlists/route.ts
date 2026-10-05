@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Setlist from '@/models/Setlist';
 import '@/models/Song';
+import '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { rejectGuests } from '@/lib/guards';
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions);
     const isAdmin = (session?.user as any)?.role === 'ADMIN';
     await dbConnect();
-    const setlists = await Setlist.find(visibleSetlistsFilter((session?.user as any)?.id, isAdmin)).sort({ date: 1 }).populate('songs.song');
+    const setlists = await Setlist.find(visibleSetlistsFilter((session?.user as any)?.id, isAdmin)).sort({ date: 1 }).populate('songs.song').populate('createdBy', 'name roleColor');
     return NextResponse.json({ success: true, data: setlists });
   } catch (error) {
     return NextResponse.json({ success: false, error: (error as any).message || 'Server Error' }, { status: 500 });

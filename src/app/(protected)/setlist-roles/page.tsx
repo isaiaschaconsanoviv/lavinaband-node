@@ -10,7 +10,9 @@ import RoleControls from './RoleControls';
 import ConfirmTurnButton from './ConfirmTurnButton';
 import ChangeAssigneeButton from './ChangeAssigneeButton';
 import DeleteAssignmentButton from './DeleteAssignmentButton';
-import RoleViews from './RoleViews';
+import RoleViewTabs from './RoleViewTabs';
+import { cookies } from 'next/headers';
+import { ROLE_VIEW_COOKIE, parseRoleView } from '@/lib/roleView';
 import RoleCalendar from './RoleCalendar';
 import Setlist from '@/models/Setlist';
 import { visibleSetlistsFilter } from '@/lib/setlists';
@@ -19,6 +21,7 @@ export default async function SetListRolesPage() {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
   const isAdmin = role === 'ADMIN';
+  const view = parseRoleView((await cookies()).get(ROLE_VIEW_COOKIE)?.value);
 
   await dbConnect();
   
@@ -160,9 +163,11 @@ export default async function SetListRolesPage() {
                 {isAdmin && <p className="text-sm text-zinc-600">Inicia la rotación para generar las próximas semanas.</p>}
               </div>
             ) : (
-              <RoleViews
-                calendar={<RoleCalendar assignments={assignments.map(a => ({ _id: a._id, sundayDate: a.sundayDate, thursdayDate: a.thursdayDate, assignedUser: { name: a.assignedUser.name, roleColor: a.assignedUser.roleColor } }))} specialEvents={specialEvents} openableSetlists={openableSetlists} todayKey={todayKey} />}
-                cards={
+              <div className="space-y-4">
+                <RoleViewTabs view={view} />
+                {view === 'calendar' ? (
+                  <RoleCalendar assignments={assignments.map(a => ({ _id: a._id, sundayDate: a.sundayDate, thursdayDate: a.thursdayDate, assignedUser: { name: a.assignedUser.name, roleColor: a.assignedUser.roleColor } }))} specialEvents={specialEvents} openableSetlists={openableSetlists} todayKey={todayKey} />
+                ) : (
               <div className="space-y-8">
               {activeAssignments.length === 0 ? (
                 <div className="text-center py-12 border-2 border-dashed border-zinc-800 rounded-xl bg-zinc-900/30">
@@ -299,8 +304,8 @@ export default async function SetListRolesPage() {
                 </details>
               )}
               </div>
-                }
-              />
+                )}
+              </div>
             )}
           </div>
         )}

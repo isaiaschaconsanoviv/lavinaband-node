@@ -20,6 +20,8 @@ const SetlistSchema = new mongoose.Schema({
   // Solo su creador, colaboradores y admins lo ven hasta que se marca como listo
   isReady: { type: Boolean, default: false },
   readyAt: { type: Date },
+  // Set list de un evento especial (lo marca quien puede editarlo)
+  isSpecialEvent: { type: Boolean, default: false },
 }, { timestamps: true });
 
 export default mongoose.models.Setlist || mongoose.model('Setlist', SetlistSchema);

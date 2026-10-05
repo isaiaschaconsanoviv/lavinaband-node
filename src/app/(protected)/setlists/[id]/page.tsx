@@ -15,6 +15,7 @@ import InEarQuickAccess from '@/components/inEars/InEarQuickAccess';
 import toast from 'react-hot-toast';
 import { DEFAULT_USER_COLOR } from '@/lib/userColors';
 import { useLocalPref } from '@/lib/useLocalPref';
+import { SPECIAL_EVENT_BADGE_CLASS, SPECIAL_EVENT_BADGE_STYLE, SPECIAL_EVENT_STRIPES } from '@/lib/specialEvent';
 
 // Borde de la canción con "Mi color" de quien la canta. Con varias personas, el borde se
 // divide en tramos diagonales a 45° (de arriba-izquierda a abajo-derecha, en el orden en que
@@ -316,7 +317,10 @@ export default function SetlistDetailPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 sm:gap-0 bg-zinc-900/40 p-4 sm:p-6 rounded-xl border border-zinc-700/50">
+      <header
+        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 sm:gap-0 bg-zinc-900/40 p-4 sm:p-6 rounded-xl border border-zinc-700/50"
+        style={setlist.isSpecialEvent ? { backgroundImage: SPECIAL_EVENT_STRIPES } : undefined}
+      >
         <div className="w-full sm:w-auto flex-1 sm:mr-4">
           <input 
             type="text" 
@@ -333,6 +337,21 @@ export default function SetlistDetailPage() {
                 title={isReady ? 'Visible para toda la banda' : 'Solo lo ven su creador, colaboradores y administradores'}
               >
                 {isReady ? 'Listo' : 'No listo'}
+              </span>
+            )}
+            {canEdit ? (
+              <button
+                type="button"
+                onClick={() => saveSetlist({ ...setlist, isSpecialEvent: !setlist.isSpecialEvent })}
+                className={`px-2 py-0.5 border rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors ${setlist.isSpecialEvent ? SPECIAL_EVENT_BADGE_CLASS : 'border-dashed border-zinc-600 text-zinc-500 hover:text-zinc-300 hover:border-zinc-400'}`}
+                style={setlist.isSpecialEvent ? SPECIAL_EVENT_BADGE_STYLE : undefined}
+                title={setlist.isSpecialEvent ? 'Quitar la marca de evento especial' : 'Marcar como evento especial'}
+              >
+                {setlist.isSpecialEvent ? '⭐ Evento especial' : '☆ Evento especial'}
+              </button>
+            ) : setlist.isSpecialEvent && (
+              <span className={`px-2 py-0.5 border rounded-md text-[10px] font-bold uppercase tracking-wider ${SPECIAL_EVENT_BADGE_CLASS}`} style={SPECIAL_EVENT_BADGE_STYLE}>
+                ⭐ Evento especial
               </span>
             )}
             {setlist.createdBy && setlist.createdBy.name && (

@@ -34,6 +34,16 @@ export async function toggleRoleRotation() {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const BAND_TIMEZONE = 'America/Tijuana';
+
+// La semana del Rol inicia en Domingo: cada turno va de su Domingo (`weekOf` = `sundayDate`)
+// al Jueves siguiente. Devuelve el Domingo del próximo turno por iniciar (hoy, si es Domingo)
+// como día de calendario (medianoche UTC), según el día de hoy en la zona horaria de la banda.
+function upcomingSunday() {
+  const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: BAND_TIMEZONE }).format(new Date());
+  const today = new Date(`${todayKey}T00:00:00Z`);
+  return new Date(today.getTime() + ((7 - today.getUTCDay()) % 7) * DAY_MS);
+}
 
 // Devuelve los usuarios asignados a la semana anterior y a la siguiente de `weekOf`.
 // Se usa una ventana de ±1 día para tolerar diferencias de zona horaria al generar.
@@ -70,22 +80,18 @@ async function generateFutureWeeks() {
   // Find the latest assignment to know where to start generating
   const latestAssignment = await RoleAssignment.findOne().sort({ weekOf: -1 });
   
-  let currentWeekStart = new Date();
-  // Get current week's Monday
-  currentWeekStart.setHours(0, 0, 0, 0);
-  currentWeekStart.setDate(currentWeekStart.getDate() - (currentWeekStart.getDay() || 7) + 1);
-
+  let currentWeekStart = upcomingSunday();
   if (latestAssignment && latestAssignment.weekOf > currentWeekStart) {
-    currentWeekStart = new Date(latestAssignment.weekOf);
-    currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+    currentWeekStart = new Date(latestAssignment.weekOf.getTime() + 7 * DAY_MS);
   }
 
   // Generate for next 4 weeks if they don't exist
   for (let i = 0; i < 4; i++) {
-    const weekOf = new Date(currentWeekStart);
-    weekOf.setDate(weekOf.getDate() + (i * 7));
+    const weekOf = new Date(currentWeekStart.getTime() + i * 7 * DAY_MS);
 
-    const existing = await RoleAssignment.findOne({ weekOf });
+    const existing = await RoleAssignment.findOne({
+      weekOf: { $gte: new Date(weekOf.getTime() - DAY_MS), $lte: new Date(weekOf.getTime() + DAY_MS) }
+    });
     if (!existing) {
       // Nadie puede tener el rol dos semanas seguidas: saltar a quien tenga la semana vecina
       const neighborIds = await getNeighborAssigneeIds(weekOf);
@@ -97,10 +103,7 @@ async function generateFutureWeeks() {
       if (attempts === users.length) continue;
 
       const sundayDate = new Date(weekOf);
-      sundayDate.setDate(sundayDate.getDate() + 6); // Sunday (End of current week)
-
-      const thursdayDate = new Date(weekOf);
-      thursdayDate.setDate(thursdayDate.getDate() + 10); // Thursday of NEXT week
+      const thursdayDate = new Date(weekOf.getTime() + 4 * DAY_MS);
 
       const assignedUser = users[lastAssignedIndex];
       
@@ -135,13 +138,8 @@ export async function resetRoleRotation() {
   
   await dbConnect();
   
-  // Get current week's Monday
-  let currentWeekStart = new Date();
-  currentWeekStart.setHours(0, 0, 0, 0);
-  currentWeekStart.setDate(currentWeekStart.getDate() - (currentWeekStart.getDay() || 7) + 1);
-
-  // Delete all assignments from current week onwards
-  await RoleAssignment.deleteMany({ weekOf: { $gte: currentWeekStart } });
+  // Borrar los turnos que aún no inician (el turno en curso, ya iniciado en Domingo, se conserva)
+  await RoleAssignment.deleteMany({ weekOf: { $gte: upcomingSunday() } });
   
   // Reset pointer
   const settings = await RoleSettings.findOne({ singletonId: 'config' });

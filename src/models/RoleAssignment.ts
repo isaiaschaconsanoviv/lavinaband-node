@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const RoleAssignmentSchema = new mongoose.Schema({
-  weekOf: { type: Date, required: true }, // Monday of the week
+  weekOf: { type: Date, required: true }, // Domingo en que inicia el turno (igual a sundayDate)
   thursdayDate: { type: Date, required: true },
   sundayDate: { type: Date, required: true },
   assignedUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

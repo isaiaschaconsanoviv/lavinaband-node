@@ -13,10 +13,27 @@ import { CSS } from '@dnd-kit/utilities';
 import SongDetailsModal from '@/components/songs/SongDetailsModal';
 import InEarQuickAccess from '@/components/inEars/InEarQuickAccess';
 import toast from 'react-hot-toast';
+import { DEFAULT_USER_COLOR } from '@/lib/userColors';
+import { useLocalPref } from '@/lib/useLocalPref';
 
-function SortableItem({ id, song, singers, isReordering, onRemove, onUpdateSong, isAdmin, canEdit, onOpenLyrics, onEditSingers }: { id: string, song: any, singers: any[], isReordering: boolean, onRemove: (id: string) => void, onUpdateSong: (id: string, updates: any) => void, isAdmin: boolean, canEdit: boolean, onOpenLyrics: (song: any) => void, onEditSingers: (id: string) => void }) {
+// Borde de la canción con "Mi color" de quien la canta. Con varias personas, el borde se
+// divide en tramos diagonales a 45° (de arriba-izquierda a abajo-derecha, en el orden en que
+// se asignaron). El borde
+// multicolor usa un fondo opaco (zinc-900/60 sobre zinc-950) para tapar el degradado.
+function singersBorder(singers: any[]): React.CSSProperties | undefined {
+  const colors = singers.map(s => s.roleColor).filter(c => c && c !== DEFAULT_USER_COLOR);
+  if (colors.length === 0) return undefined;
+  if (colors.length === 1) return { borderColor: colors[0] };
+  const stops = colors.map((c, i) => `${c} ${(i / colors.length) * 100}% ${((i + 1) / colors.length) * 100}%`).join(', ');
+  return {
+    borderColor: 'transparent',
+    background: `linear-gradient(#121215, #121215) padding-box, linear-gradient(135deg, ${stops}) border-box`,
+  };
+}
+
+function SortableItem({ id, song, singers, showSingerColors, isReordering, onRemove, onUpdateSong, isAdmin, canEdit, onOpenLyrics, onEditSingers }: { id: string, song: any, singers: any[], showSingerColors: boolean, isReordering: boolean, onRemove: (id: string) => void, onUpdateSong: (id: string, updates: any) => void, isAdmin: boolean, canEdit: boolean, onOpenLyrics: (song: any) => void, onEditSingers: (id: string) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-  const style = { transform: CSS.Transform.toString(transform), transition };
+  const style = { transform: CSS.Transform.toString(transform), transition, ...(showSingerColors ? singersBorder(singers) : undefined) };
   
   const [isEditingYt, setIsEditingYt] = useState(false);
   const [ytLink, setYtLink] = useState(song.youtubeLink || '');
@@ -141,6 +158,10 @@ export default function SetlistDetailPage() {
   const [isReordering, setIsReordering] = useState(false);
   const [selectedLyricsSong, setSelectedLyricsSong] = useState<any>(null);
   const [singersSongId, setSingersSongId] = useState<string | null>(null);
+  // Bordes con el color de quien canta: preferencia de cada dispositivo (activados por defecto)
+  const [singerColors, setSingerColors] = useLocalPref('setlistSingerColors', 'on', ['on', 'off']);
+  const showSingerColors = singerColors === 'on';
+  const toggleSingerColors = () => setSingerColors(showSingerColors ? 'off' : 'on');
 
   useEffect(() => {
     if (!params?.id) return;
@@ -425,15 +446,32 @@ export default function SetlistDetailPage() {
 
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <h2 className="text-xl font-semibold">Canciones</h2>
-            {canEdit && setlist.songs.length > 0 && (
-              <button 
-                onClick={() => setIsReordering(!isReordering)}
-                className={`text-sm px-4 py-2 rounded-lg font-medium transition-colors border ${isReordering ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white'}`}
-              >
-                {isReordering ? '✓ Guardar Orden' : '⇅ Reordenar'}
-              </button>
+            {setlist.songs.length > 0 && (
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={showSingerColors}
+                  onClick={toggleSingerColors}
+                  className="flex items-center gap-2 text-sm text-zinc-300 hover:text-white"
+                  title="Mostrar el borde con el color de quien canta"
+                >
+                  <span aria-label="Colores de quien canta">🎨🎤</span>
+                  <span className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors ${showSingerColors ? 'bg-blue-600' : 'bg-zinc-700'}`}>
+                    <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${showSingerColors ? 'translate-x-4' : ''}`} />
+                  </span>
+                </button>
+                {canEdit && (
+                  <button 
+                    onClick={() => setIsReordering(!isReordering)}
+                    className={`text-sm px-4 py-2 rounded-lg font-medium transition-colors border ${isReordering ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white'}`}
+                  >
+                    {isReordering ? '✓ Guardar Orden' : '⇅ Reordenar'}
+                  </button>
+                )}
+              </div>
             )}
           </div>
           {setlist.songs.length === 0 ? (
@@ -445,7 +483,7 @@ export default function SetlistDetailPage() {
               <SortableContext items={setlist.songs.map((s:any) => s.song._id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
                   {setlist.songs.map((item: any) => (
-                    <SortableItem key={item.song._id} id={item.song._id} song={item.song} singers={item.singers || []} onEditSingers={setSingersSongId} isReordering={isReordering && canEdit} onRemove={canEdit ? removeSong : () => {}} onUpdateSong={updateSongInSetlist} isAdmin={isAdmin} canEdit={canEdit} onOpenLyrics={setSelectedLyricsSong} />
+                    <SortableItem key={item.song._id} id={item.song._id} song={item.song} singers={item.singers || []} showSingerColors={showSingerColors} onEditSingers={setSingersSongId} isReordering={isReordering && canEdit} onRemove={canEdit ? removeSong : () => {}} onUpdateSong={updateSongInSetlist} isAdmin={isAdmin} canEdit={canEdit} onOpenLyrics={setSelectedLyricsSong} />
                   ))}
                 </div>
               </SortableContext>

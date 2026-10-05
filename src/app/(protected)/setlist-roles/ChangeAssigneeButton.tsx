@@ -49,7 +49,8 @@ export default function ChangeAssigneeButton({ assignmentId, currentAssigneeId, 
       {showModal && (
         <ModalPortal>
         <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 pt-24 sm:pt-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-zinc-900 border border-zinc-700/50 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+          {/* Sin overflow-hidden: recortaría la lista desplegable del select */}
+          <div className="bg-zinc-900 border border-zinc-700/50 rounded-2xl w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="p-6">
               <h3 className="text-xl font-bold text-white mb-2">Cambiar Encargado</h3>
               <p className="text-zinc-400 text-sm leading-relaxed mb-4">Selecciona al nuevo encargado para esta semana. El turno volverá a estado Pendiente.</p>
@@ -64,7 +65,7 @@ export default function ChangeAssigneeButton({ assignmentId, currentAssigneeId, 
               </div>
             </div>
             
-            <div className="bg-zinc-950/50 p-4 border-t border-zinc-800/50 flex justify-end gap-3">
+            <div className="bg-zinc-950/50 p-4 border-t border-zinc-800/50 rounded-b-2xl flex justify-end gap-3">
               <button 
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"

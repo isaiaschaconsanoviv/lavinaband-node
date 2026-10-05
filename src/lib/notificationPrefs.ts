@@ -8,6 +8,7 @@ export const NOTIFICATION_TYPES = [
   { key: 'setlistReady', label: 'Set lists listos', description: 'Cuando un set list queda listo para revisarse', audience: 'member' },
   { key: 'setlistCollaborator', label: 'Colaboración en set lists', description: 'Cuando te agregan como colaborador de un set list', audience: 'member' },
   { key: 'roleTurns', label: 'Rol de Set Lists', description: 'Cuando te asignan un turno o responden tu solicitud para el rol', audience: 'member' },
+  { key: 'roleReminder', label: 'Recordatorio de tu turno', description: 'El lunes antes de que empiece tu semana en el Rol de Set Lists', audience: 'member' },
   { key: 'inEars', label: 'Cambios de In-Ears', description: 'Cuando un miembro ajusta su mezcla', audience: 'engineer' },
   { key: 'turnConfirmed', label: 'Turnos confirmados', description: 'Cuando el encargado confirma de enterado su turno', audience: 'admin' },
   { key: 'roleRequests', label: 'Solicitudes de Rol', description: 'Cuando alguien pide unirse al Rol de Set Lists', audience: 'admin' },

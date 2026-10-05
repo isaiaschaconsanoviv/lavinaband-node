@@ -67,13 +67,29 @@ export default async function SetListRolesPage() {
 
   // Set lists de eventos especiales para el calendario (solo los que esta persona puede ver).
   // Su fecha es un instante: se pasa a día de calendario en la zona horaria de la banda.
+  const toBandDayKey = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: BAND_TIMEZONE }).format(date);
   const rawSpecials = await Setlist.find({ isSpecialEvent: true, ...visibleSetlistsFilter((session?.user as any)?.id, isAdmin) })
-    .select('title date')
-    .lean<{ _id: { toString(): string }; title: string; date: Date }[]>();
+    .select('title date isReady')
+    .lean<{ _id: { toString(): string }; title: string; date: Date; isReady?: boolean }[]>();
   const specialEvents = rawSpecials.map(s => ({
     _id: s._id.toString(),
     title: s.title,
-    dayKey: new Intl.DateTimeFormat('en-CA', { timeZone: BAND_TIMEZONE }).format(s.date),
+    dayKey: toBandDayKey(s.date),
+    isReady: s.isReady !== false,
+  }));
+  // Set lists que se abren al tocar su día en el calendario: los listos (los ve toda la banda)
+  // y los que creó esta persona aunque todavía no estén listos. Los admins abren todos.
+  const userId = (session?.user as any)?.id;
+  const openableFilter = isAdmin ? {} : userId ? { $or: [{ isReady: { $ne: false } }, { createdBy: userId }] } : { isReady: { $ne: false } };
+  const rawOpenable = await Setlist.find(openableFilter)
+    .select('title date isSpecialEvent isReady')
+    .lean<{ _id: { toString(): string }; title: string; date: Date; isSpecialEvent?: boolean; isReady?: boolean }[]>();
+  const openableSetlists = rawOpenable.map(s => ({
+    _id: s._id.toString(),
+    title: s.title,
+    dayKey: toBandDayKey(s.date),
+    isSpecialEvent: !!s.isSpecialEvent,
+    isReady: s.isReady !== false,
   }));
   const toDayKey = (iso: string, offsetDays = 0) =>
     new Date(new Date(iso).getTime() + offsetDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -145,7 +161,7 @@ export default async function SetListRolesPage() {
               </div>
             ) : (
               <RoleViews
-                calendar={<RoleCalendar assignments={assignments.map(a => ({ _id: a._id, sundayDate: a.sundayDate, thursdayDate: a.thursdayDate, assignedUser: { name: a.assignedUser.name, roleColor: a.assignedUser.roleColor } }))} specialEvents={specialEvents} todayKey={todayKey} />}
+                calendar={<RoleCalendar assignments={assignments.map(a => ({ _id: a._id, sundayDate: a.sundayDate, thursdayDate: a.thursdayDate, assignedUser: { name: a.assignedUser.name, roleColor: a.assignedUser.roleColor } }))} specialEvents={specialEvents} openableSetlists={openableSetlists} todayKey={todayKey} />}
                 cards={
               <div className="space-y-8">
               {activeAssignments.length === 0 ? (

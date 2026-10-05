@@ -1,5 +1,6 @@
 'use client';
 import { useEffect } from 'react';
+import ModalPortal from '@/components/ui/ModalPortal';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export default function ConfirmModal({
   if (!isOpen) return null;
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 pt-24 sm:pt-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-zinc-900 border border-zinc-700/50 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
         <div className="p-6">
@@ -61,5 +63,6 @@ export default function ConfirmModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

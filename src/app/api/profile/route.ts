@@ -8,6 +8,7 @@ import Announcement from '@/models/Announcement';
 import bcrypt from 'bcryptjs';
 import { sendPush } from '@/lib/push';
 import { INSTRUMENTS } from '@/lib/inEars';
+import { DEFAULT_USER_COLOR, isUserColor } from '@/lib/userColors';
 
 
 export async function PUT(req: Request) {
@@ -58,7 +59,20 @@ export async function PUT(req: Request) {
       }
       updates.email = email;
     }
-    if (roleColor) updates.roleColor = roleColor;
+    // "Mi color": solo miembros, solo colores de la paleta y sin repetir (el gris por defecto sí se repite)
+    if (roleColor && roleColor !== user.roleColor && user.role !== 'GUEST') {
+      if (!isUserColor(roleColor)) {
+        return NextResponse.json({ error: 'Color no válido' }, { status: 400 });
+      }
+      if (roleColor !== DEFAULT_USER_COLOR) {
+        const owner = await User.findOne({ _id: { $ne: user._id }, roleColor }).select('name').lean<{ name: string }>();
+        if (owner) {
+          const takenBy = owner.name.trim().split(/\s+/)[0];
+          return NextResponse.json({ error: `Ese color ya es de ${takenBy}`, takenBy }, { status: 409 });
+        }
+      }
+      updates.roleColor = roleColor;
+    }
 
     // Marcas de In-Ears (los invitados no participan)
     if (user.role !== 'GUEST') {

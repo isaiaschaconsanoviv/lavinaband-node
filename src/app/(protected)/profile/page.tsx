@@ -5,6 +5,8 @@ import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import ProfileForm from './ProfileForm';
 import RoleForm from './RoleForm';
+import ColorForm from './ColorForm';
+import { DEFAULT_USER_COLOR } from '@/lib/userColors';
 import InEarForm from './InEarForm';
 import PushNotificationManager from '@/components/PushNotificationManager';
 import MobileLogoutButton from './MobileLogoutButton';
@@ -18,6 +20,13 @@ export default async function ProfilePage() {
   const user = await User.findOne({ email: session?.user?.email }).lean();
   
   if (!user) return <div>Usuario no encontrado</div>;
+
+  // Colores que ya eligieron otras personas (color → primer nombre)
+  const takenColors: Record<string, string> = {};
+  if (user.role !== 'GUEST') {
+    const others = await User.find({ _id: { $ne: user._id }, roleColor: { $nin: [DEFAULT_USER_COLOR, null] } }).select('name roleColor').lean();
+    for (const other of others) takenColors[other.roleColor] = other.name.trim().split(/\s+/)[0];
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
@@ -40,9 +49,15 @@ export default async function ProfilePage() {
         <div className="space-y-6">
           {user.role !== 'GUEST' && (
             <div className="bg-zinc-900/60 backdrop-blur border border-zinc-700/50 rounded-xl p-6 shadow-lg">
+              <h3 className="text-lg font-semibold mb-4 text-pink-400">Mi color</h3>
+              <ColorForm initialColor={user.roleColor || DEFAULT_USER_COLOR} takenBy={takenColors} />
+            </div>
+          )}
+
+          {user.role !== 'GUEST' && (
+            <div className="bg-zinc-900/60 backdrop-blur border border-zinc-700/50 rounded-xl p-6 shadow-lg">
               <h3 className="text-lg font-semibold mb-4 text-emerald-400">Rol</h3>
               <RoleForm
-                initialRoleColor={user.roleColor || '#71717a'}
                 initialSetListRoleStatus={user.setListRoleStatus || 'NONE'}
               />
             </div>

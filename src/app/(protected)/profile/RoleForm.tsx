@@ -6,21 +6,14 @@ import toast from 'react-hot-toast';
 type SetListRoleStatus = 'NONE' | 'PENDING' | 'APPROVED';
 
 export default function RoleForm({
-  initialRoleColor,
   initialSetListRoleStatus = 'NONE'
 }: {
-  initialRoleColor: string,
   initialSetListRoleStatus?: SetListRoleStatus
 }) {
-  const [roleColor, setRoleColor] = useState(initialRoleColor);
   const [setListRoleStatus, setSetListRoleStatus] = useState<SetListRoleStatus>(initialSetListRoleStatus);
   // Último estado guardado, para saber si se solicita unirse o salir del rol
   const [savedStatus, setSavedStatus] = useState<SetListRoleStatus>(initialSetListRoleStatus);
   const [loading, setLoading] = useState(false);
-
-  const predefinedColors = [
-    '#ef4444', '#f97316', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e', '#71717a'
-  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +26,7 @@ export default function RoleForm({
       const res = await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roleColor, requestSetListRole, optOutSetListRole })
+        body: JSON.stringify({ requestSetListRole, optOutSetListRole })
       });
 
       const data = await res.json();
@@ -88,23 +81,6 @@ export default function RoleForm({
           )}
         </div>
       </div>
-
-      {setListRoleStatus === 'APPROVED' && (
-        <div>
-          <label className="block text-sm font-medium text-zinc-300 mb-2">Color de Rol</label>
-          <div className="flex gap-2 flex-wrap">
-            {predefinedColors.map(color => (
-              <button
-                key={color}
-                type="button"
-                onClick={() => setRoleColor(color)}
-                className={`w-8 h-8 rounded-full transition-transform ${roleColor === color ? 'scale-125 ring-2 ring-white' : 'hover:scale-110'}`}
-                style={{ backgroundColor: color }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
 
       <button
         type="submit"

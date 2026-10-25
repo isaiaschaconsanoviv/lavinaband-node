@@ -6,69 +6,7 @@ import ConfirmModal from '@/components/ConfirmModal';
 import ChordTransposer from '@/components/songs/ChordTransposer';
 import CapoSelector from '@/components/songs/CapoSelector';
 import { detectKey, extractChords, keyName, parseKey, semitonesBetween, transposeChordLine } from '@/lib/chords';
-
-interface ParsedParagraph {
-  header?: string;
-  lines: { lyric: string; chord: string }[];
-}
-
-function parseHolyrics(lyrics: string, formatting: string): ParsedParagraph[] | null {
-  if (!formatting || !formatting.includes('¦')) return null;
-
-  try {
-    const parts = formatting.split(/\n{3,}/);
-    if (parts.length < 2) return null;
-
-    const headersBlock = parts[0].split('\n');
-    let chordsBlock = parts[parts.length - 1].split('\n');
-    
-    // Trim empty lines at start and end of chords block
-    while (chordsBlock.length > 0 && chordsBlock[0].trim() === '' && !chordsBlock[0].includes('¦')) {
-      chordsBlock.shift();
-    }
-    while (chordsBlock.length > 0 && chordsBlock[chordsBlock.length - 1].trim() === '' && !chordsBlock[chordsBlock.length - 1].includes('¦')) {
-      chordsBlock.pop();
-    }
-
-    const lyricParagraphs = (lyrics || '').replace(/\r\n/g, '\n').split(/\n{2,}/);
-
-    const result: ParsedParagraph[] = [];
-    const maxLen = Math.max(headersBlock.length, chordsBlock.length, lyricParagraphs.length);
-
-    for (let i = 0; i < maxLen; i++) {
-      const header = headersBlock[i]?.trim();
-      const chordLine = chordsBlock[i] || '';
-      const lyricPara = lyricParagraphs[i] || '';
-
-      const lyricLines = lyricPara.split('\n');
-      const chordLines = chordLine.split('¦');
-
-      const linesCount = Math.max(lyricLines.length, chordLines.length);
-      const lines = [];
-
-      for (let j = 0; j < linesCount; j++) {
-        const l = lyricLines[j] || '';
-        const c = chordLines[j] || '';
-        if (l.trim() || c.trim() || j === 0) {
-          lines.push({ lyric: l, chord: c });
-        }
-      }
-
-      if (!header && lines.every(l => !l.lyric.trim() && !l.chord.trim())) {
-        continue;
-      }
-
-      result.push({
-        header: header?.startsWith('##') ? header.replace(/##\((.*?)\)/, '$1') : header,
-        lines
-      });
-    }
-
-    return result;
-  } catch (e) {
-    return null;
-  }
-}
+import { parseHolyrics } from '@/lib/songSlides';
 
 // Tamaños de letra (px) para el modo pantalla completa; el elegido se recuerda en el dispositivo
 const FULLSCREEN_FONT_SIZES = [14, 16, 18, 20, 22, 24, 28, 32, 36];

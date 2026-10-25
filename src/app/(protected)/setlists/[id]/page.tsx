@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import DatePicker from '@/components/DatePicker';
@@ -543,6 +544,20 @@ export default function SetlistDetailPage() {
             </div>
         </div>
       </div>
+
+      {/* Presentación en vivo: cualquiera de la banda puede presentar o abrir la vista en vivo */}
+      {setlist.songs.length > 0 && (
+        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <Link href={`/setlists/${params.id}/present`} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-semibold transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M4 4v10a2 2 0 002 2h12a2 2 0 002-2V4M12 16v4m-4 0h8" /></svg>
+            Presentar
+          </Link>
+          <Link href={`/setlists/${params.id}/live`} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-white font-semibold transition-colors">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+            Vista en vivo
+          </Link>
+        </div>
+      )}
 
       {showSelector && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">

@@ -6,6 +6,11 @@ import SuggestionsModal from '@/components/songs/SuggestionsModal';
 import ImportMuflButton from '@/components/ImportMuflButton';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+// Búsqueda sin acentos ni mayúsculas: "senor" encuentra "Señor"
+const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+// En la letra solo se busca a partir de 3 letras (con menos, casi todas coinciden)
+const MIN_LYRICS_SEARCH = 3;
+
 export default function SongsClient({ initialSongs, role }: { initialSongs: any[], role: string }) {
   const [songs, setSongs] = useState(initialSongs);
   const [expandedSongId, setExpandedSongId] = useState<string | null>(null);
@@ -35,17 +40,34 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
   };
   const [selectedSong, setSelectedSong] = useState<any>(null);
 
-  // Filters & Sorting logic
-  const filteredAndSortedSongs = useMemo(() => {
-    let result = [...songs];
+  // Texto ya normalizado de cada canción, para no recalcularlo en cada tecla
+  const searchIndex = useMemo(() => new Map(songs.map(song => {
+    const lines = String(song.lyrics || '').split('\n')
+      .map((line: string) => line.replace(/\/\//g, '').trim())
+      .filter(Boolean);
+    return [song._id, {
+      meta: [song.title, song.artist, song.key].filter(Boolean).map(normalize),
+      lines: lines.map((line: string) => ({ text: line, norm: normalize(line) })),
+    }];
+  })), [songs]);
 
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(song => 
-        song.title.toLowerCase().includes(term) || 
-        song.artist.toLowerCase().includes(term) ||
-        (song.key && song.key.toLowerCase().includes(term))
-      );
+  // Filters & Sorting logic. `lyricMatches`: canciones que coinciden solo por la letra →
+  // la línea encontrada, para mostrarla bajo el título.
+  const { filteredAndSortedSongs, lyricMatches } = useMemo(() => {
+    let result = [...songs];
+    const lyricMatches = new Map<string, string>();
+
+    const term = normalize(searchTerm.trim());
+    if (term) {
+      result = result.filter(song => {
+        const entry = searchIndex.get(song._id);
+        if (!entry) return false;
+        if (entry.meta.some((field: string) => field.includes(term))) return true;
+        if (term.length < MIN_LYRICS_SEARCH) return false;
+        const line = entry.lines.find((l: { norm: string }) => l.norm.includes(term));
+        if (line) lyricMatches.set(song._id, line.text);
+        return Boolean(line);
+      });
     }
 
     result.sort((a, b) => {
@@ -56,8 +78,8 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
       return 0;
     });
 
-    return result;
-  }, [songs, searchTerm, sortField, sortDirection]);
+    return { filteredAndSortedSongs: result, lyricMatches };
+  }, [songs, searchIndex, searchTerm, sortField, sortDirection]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredAndSortedSongs.length / itemsPerPage);
@@ -127,7 +149,7 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
         </div>
         <input 
           type="text" 
-          placeholder="Buscar por título, artista o tono..." 
+          placeholder="Buscar por título, artista, tono o letra..."
           value={searchTerm}
           onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
           className="w-full bg-zinc-900/50 border border-zinc-700/50 rounded-xl pl-12 pr-4 py-3.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500/50 focus:bg-zinc-900 focus:ring-1 focus:ring-blue-500/50 transition-all shadow-inner"
@@ -192,6 +214,11 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
                       <div className="flex flex-col">
                         <span>{song.title}</span>
                         <span className="text-xs text-zinc-500 md:hidden font-normal mt-0.5">{song.artist}</span>
+                        {lyricMatches.has(song._id) && (
+                          <span className="text-xs text-zinc-400 italic font-normal mt-1 line-clamp-2" title="Coincide en la letra">
+                            🎵 “…{lyricMatches.get(song._id)}…”
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="hidden md:table-cell p-4 text-zinc-400">{song.artist}</td>

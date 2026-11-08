@@ -24,8 +24,9 @@ export function buildSongSearchIndex(songs: SearchableSong[]): SongSearchIndex {
   }));
 }
 
-// Filtra las canciones. `lyricMatches`: las que coinciden solo por la letra → la línea
-// encontrada, para mostrarla bajo el título.
+// Filtra las canciones. `lyricMatches`: las que tienen lo buscado en la letra → la primera
+// línea que coincide, para mostrarla bajo el título (aunque también coincidan por título o
+// artista, para que siempre se vea dónde está en la letra).
 export function searchSongs<T extends SearchableSong>(songs: T[], index: SongSearchIndex, searchTerm: string) {
   const lyricMatches = new Map<string, string>();
   const term = normalizeSearch(searchTerm.trim());
@@ -34,11 +35,9 @@ export function searchSongs<T extends SearchableSong>(songs: T[], index: SongSea
   const results = songs.filter(song => {
     const entry = index.get(song._id);
     if (!entry) return false;
-    if (entry.meta.some(field => field.includes(term))) return true;
-    if (term.length < MIN_LYRICS_SEARCH) return false;
-    const line = entry.lines.find(l => l.norm.includes(term));
+    const line = term.length >= MIN_LYRICS_SEARCH ? entry.lines.find(l => l.norm.includes(term)) : undefined;
     if (line) lyricMatches.set(song._id, line.text);
-    return Boolean(line);
+    return Boolean(line) || entry.meta.some(field => field.includes(term));
   });
   return { results, lyricMatches };
 }

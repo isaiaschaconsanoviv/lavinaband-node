@@ -7,7 +7,9 @@ const RoleAssignmentSchema = new mongoose.Schema({
   assignedUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   status: { type: String, enum: ['PENDING', 'CONFIRMED', 'COMPLETED', 'SKIPPED'], default: 'PENDING' },
   // Cuándo se envió el recordatorio del Lunes previo (api/cron/role-reminder)
-  reminderSentAt: { type: Date }
+  reminderSentAt: { type: Date },
+  // Resultado del envío del recordatorio (dispositivos que lo recibieron / fallaron), para diagnosticar
+  reminderDelivery: { sent: Number, failed: Number, optedOut: Number, error: String }
 }, { timestamps: true });
 
 export default mongoose.models.RoleAssignment || mongoose.model('RoleAssignment', RoleAssignmentSchema);

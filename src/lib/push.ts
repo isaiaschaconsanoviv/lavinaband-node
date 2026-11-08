@@ -20,29 +20,37 @@ type PushRecipient = { pushSubscriptions?: PushSubscription[] | null; notificati
 // omitiendo a quienes desactivaron ese tipo de notificación en su Perfil.
 // Las suscripciones que el servicio de push reporta como inexistentes (404/410:
 // app desinstalada, datos borrados, permiso revocado) se eliminan de la base.
-export async function sendPush(type: NotificationType, recipients: PushRecipient[], payload: PushPayload) {
+// Devuelve cuántos dispositivos lo recibieron (`sent`), cuántos fallaron (`failed`, incluye
+// los eliminados) y cuántos destinatarios lo tienen desactivado (`optedOut`).
+export type PushResult = { sent: number; failed: number; optedOut: number; error?: string };
+
+export async function sendPush(type: NotificationType, recipients: PushRecipient[], payload: PushPayload): Promise<PushResult> {
+  const wanted = recipients.filter(r => wantsNotification(r.notificationPrefs, type));
+  const optedOut = recipients.length - wanted.length;
   if (!isConfigured) {
     console.warn('Push no configurado: faltan NEXT_PUBLIC_VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY');
-    return;
+    return { sent: 0, failed: 0, optedOut, error: 'not-configured' };
   }
 
   // Un mismo dispositivo pudo quedar registrado en varias cuentas: enviar una sola vez
   const subscriptions = new Map<string, PushSubscription>();
-  for (const recipient of recipients.filter(r => wantsNotification(r.notificationPrefs, type))) {
+  for (const recipient of wanted) {
     for (const sub of recipient.pushSubscriptions ?? []) {
       if (sub?.endpoint) subscriptions.set(sub.endpoint, sub);
     }
   }
-  if (subscriptions.size === 0) return;
+  if (subscriptions.size === 0) return { sent: 0, failed: 0, optedOut };
 
   const body = JSON.stringify(payload);
   const subs = [...subscriptions.values()];
   const results = await Promise.allSettled(subs.map(sub => webpush.sendNotification(sub, body)));
 
   const deadEndpoints: string[] = [];
+  const errors: string[] = [];
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') return;
     const statusCode = (result.reason as { statusCode?: number })?.statusCode;
+    errors.push(String(statusCode ?? (result.reason as Error)?.message ?? 'error'));
     if (statusCode === 404 || statusCode === 410) deadEndpoints.push(subs[i].endpoint);
     else console.error('Push error:', result.reason);
   });
@@ -57,4 +65,7 @@ export async function sendPush(type: NotificationType, recipients: PushRecipient
       console.error('Error al limpiar suscripciones push:', err);
     }
   }
+
+  const failed = errors.length;
+  return { sent: subs.length - failed, failed, optedOut, ...(failed ? { error: errors.join(', ') } : {}) };
 }

@@ -59,12 +59,15 @@ export async function GET(req: NextRequest) {
     if (!claimed) continue;
     const user = await User.findById(a.assignedUser);
     if (!user) continue;
-    await sendPush('roleReminder', [user], {
+    const delivery = await sendPush('roleReminder', [user], {
       title: 'Tu semana del Rol se acerca',
       body: `Te toca armar los set lists del ${shortDate(a.sundayDate)} y del ${shortDate(a.thursdayDate)}. ¡Prepáralos con tiempo!`,
       url: '/setlists',
     });
-    sent++;
+    // Guardar si llegó a algún dispositivo (sent = 0 con failed = 0 significa que no tenía dispositivos)
+    await RoleAssignment.updateOne({ _id: a._id }, { $set: { reminderDelivery: delivery } });
+    if (delivery.sent > 0) sent++;
+    else console.warn('Recordatorio del Rol sin entregar', { assignment: a._id, user: user._id, ...delivery });
   }
 
   return NextResponse.json({ success: true, sent });

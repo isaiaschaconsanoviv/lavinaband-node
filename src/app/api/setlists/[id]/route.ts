@@ -96,11 +96,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       .populate('createdBy', 'name')
       .populate('collaborators', 'name');
       
-    // Send push notifications to newly added collaborators
-    if (updateData.collaborators) {
-      const oldCollabs = existingSetlist.collaborators?.map((c: any) => c.toString()) || [];
-      const newCollabs = updateData.collaborators;
-      const addedCollabs = newCollabs.filter((id: string) => !oldCollabs.includes(id));
+    // Avisar solo a los colaboradores recién agregados. El cliente a veces manda la lista
+    // poblada ({ _id, name }) al guardar todo el set list, así que se comparan por id.
+    if (Array.isArray(updateData.collaborators)) {
+      const oldCollabs = new Set<string>(existingSetlist.collaborators?.map((c: any) => c.toString()) || []);
+      const newCollabs = updateData.collaborators.map((c: any) => String(c?._id ?? c));
+      const addedCollabs = [...new Set<string>(newCollabs)].filter(id => !oldCollabs.has(id));
       
       if (addedCollabs.length > 0) {
         const users = await mongoose.models.User.find({ _id: { $in: addedCollabs } });

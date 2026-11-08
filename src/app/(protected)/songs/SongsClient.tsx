@@ -5,11 +5,7 @@ import SongDetailsModal from '@/components/songs/SongDetailsModal';
 import SuggestionsModal from '@/components/songs/SuggestionsModal';
 import ImportMuflButton from '@/components/ImportMuflButton';
 import { useRouter, useSearchParams } from 'next/navigation';
-
-// Búsqueda sin acentos ni mayúsculas: "senor" encuentra "Señor"
-const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-// En la letra solo se busca a partir de 3 letras (con menos, casi todas coinciden)
-const MIN_LYRICS_SEARCH = 3;
+import { buildSongSearchIndex, searchSongs } from '@/lib/songSearch';
 
 export default function SongsClient({ initialSongs, role }: { initialSongs: any[], role: string }) {
   const [songs, setSongs] = useState(initialSongs);
@@ -40,35 +36,13 @@ export default function SongsClient({ initialSongs, role }: { initialSongs: any[
   };
   const [selectedSong, setSelectedSong] = useState<any>(null);
 
-  // Texto ya normalizado de cada canción, para no recalcularlo en cada tecla
-  const searchIndex = useMemo(() => new Map(songs.map(song => {
-    const lines = String(song.lyrics || '').split('\n')
-      .map((line: string) => line.replace(/\/\//g, '').trim())
-      .filter(Boolean);
-    return [song._id, {
-      meta: [song.title, song.artist, song.key].filter(Boolean).map(normalize),
-      lines: lines.map((line: string) => ({ text: line, norm: normalize(line) })),
-    }];
-  })), [songs]);
+  // Búsqueda por título, artista, tono y letra (lib/songSearch.ts)
+  const searchIndex = useMemo(() => buildSongSearchIndex(songs), [songs]);
 
-  // Filters & Sorting logic. `lyricMatches`: canciones que coinciden solo por la letra →
-  // la línea encontrada, para mostrarla bajo el título.
+  // Filters & Sorting logic
   const { filteredAndSortedSongs, lyricMatches } = useMemo(() => {
-    let result = [...songs];
-    const lyricMatches = new Map<string, string>();
-
-    const term = normalize(searchTerm.trim());
-    if (term) {
-      result = result.filter(song => {
-        const entry = searchIndex.get(song._id);
-        if (!entry) return false;
-        if (entry.meta.some((field: string) => field.includes(term))) return true;
-        if (term.length < MIN_LYRICS_SEARCH) return false;
-        const line = entry.lines.find((l: { norm: string }) => l.norm.includes(term));
-        if (line) lyricMatches.set(song._id, line.text);
-        return Boolean(line);
-      });
-    }
+    const { results, lyricMatches } = searchSongs(songs, searchIndex, searchTerm);
+    const result = [...results];
 
     result.sort((a, b) => {
       const aVal = a[sortField] || '';

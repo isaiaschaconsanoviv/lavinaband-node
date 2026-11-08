@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import DatePicker from '@/components/DatePicker';
 import ConfirmModal from '@/components/ConfirmModal';
+import { buildSongSearchIndex, searchSongs } from '@/lib/songSearch';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { DndContext, closestCenter, useSensor, useSensors, PointerSensor, TouchSensor } from '@dnd-kit/core';
@@ -157,6 +158,8 @@ export default function SetlistDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showSelector, setShowSelector] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  // Búsqueda del selector de canciones: título, artista, tono y letra (lib/songSearch.ts)
+  const songSearchIndex = useMemo(() => buildSongSearchIndex(allSongs), [allSongs]);
   const [isReordering, setIsReordering] = useState(false);
   const [selectedLyricsSong, setSelectedLyricsSong] = useState<any>(null);
   const [singersSongId, setSingersSongId] = useState<string | null>(null);
@@ -297,7 +300,7 @@ export default function SetlistDetailPage() {
   if (loading) return <div className="p-8 text-center text-zinc-400">Cargando...</div>;
   if (!setlist || setlist.error) return <div className="p-8 text-center text-red-400">No se encontró el setlist. Detalle: {setlist?.error || 'Desconocido'} (ID: {params.id})</div>;
 
-  const filteredSongs = allSongs.filter(s => s.title.toLowerCase().includes(searchTerm.toLowerCase()));
+  const { results: filteredSongs, lyricMatches } = searchSongs(allSongs, songSearchIndex, searchTerm);
   
   const isCreator = setlist.createdBy?._id === currentUserId;
   const isCollaborator = setlist.collaborators?.some((c: any) => c._id === currentUserId);
@@ -567,7 +570,7 @@ export default function SetlistDetailPage() {
               <button onClick={() => setShowSelector(false)} className="text-zinc-400 hover:text-white">✕</button>
             </div>
             <div className="p-4 border-b border-zinc-800">
-              <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-zinc-800 p-2 rounded-lg text-white focus:outline-none" />
+              <input type="text" placeholder="Buscar por título, artista, tono o letra..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-zinc-800 p-2 rounded-lg text-white focus:outline-none" />
             </div>
             <div className="overflow-y-auto p-2">
               {filteredSongs.map(song => (
@@ -575,6 +578,11 @@ export default function SetlistDetailPage() {
                   <div>
                     <div className="font-medium text-zinc-200">{song.title}</div>
                     <div className="text-sm text-zinc-500">{song.artist}</div>
+                    {lyricMatches.has(song._id) && (
+                      <div className="text-xs text-zinc-400 italic mt-1 line-clamp-2" title="Coincide en la letra">
+                        🎵 “…{lyricMatches.get(song._id)}…”
+                      </div>
+                    )}
                   </div>
                   <div className="text-sm text-blue-400">{song.key}</div>
                 </button>

@@ -188,28 +188,76 @@ export async function confirmRoleAssignment(assignmentId: string) {
   revalidatePath('/dashboard');
 }
 
-export async function changeRoleAssignment(assignmentId: string, newUserId: string) {
+export type RoleChangeScope = 'week' | 'sunday' | 'thursday';
+
+const shortDay = (date: Date) => date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+// Cambia al encargado de toda la semana (`week`) o solo de un día (`sunday` / `thursday`).
+// El cambio por día se guarda en `sundayUser` / `thursdayUser` y no cambia el estado del turno:
+// el encargado de la semana sigue siendo quien confirma. Si los dos días quedan con la misma
+// persona, pasa a ser el encargado de la semana.
+export async function changeRoleAssignment(assignmentId: string, newUserId: string, scope: RoleChangeScope = 'week') {
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Unauthorized');
-  
+  if (!['week', 'sunday', 'thursday'].includes(scope)) throw new Error('Invalid scope');
+
   await dbConnect();
-  
+
   const assignment = await RoleAssignment.findById(assignmentId);
   if (!assignment) throw new Error('Assignment not found');
+  const newUser = await User.findById(newUserId);
+  if (!newUser) throw new Error('User not found');
 
-  assignment.assignedUser = newUserId;
-  assignment.status = 'PENDING'; // reset status
+  const weekUserId = assignment.assignedUser?.toString();
+  const dayUserId = (day: 'sunday' | 'thursday') => (assignment.get(`${day}User`) ?? assignment.assignedUser)?.toString();
+
+  if (scope === 'week') {
+    assignment.assignedUser = newUser._id;
+    assignment.set('sundayUser', undefined);
+    assignment.set('thursdayUser', undefined);
+    assignment.status = 'PENDING'; // reset status
+  } else {
+    const previousId = dayUserId(scope);
+    // Si vuelve a ser el encargado de la semana, ya no hace falta el cambio de ese día
+    assignment.set(`${scope}User`, newUser._id.toString() === weekUserId ? undefined : newUser._id);
+    const sundayId = dayUserId('sunday');
+    if (sundayId === dayUserId('thursday') && sundayId !== weekUserId) {
+      assignment.assignedUser = newUser._id;
+      assignment.set('sundayUser', undefined);
+      assignment.set('thursdayUser', undefined);
+      assignment.status = 'PENDING';
+    }
+    await assignment.save();
+
+    const date = scope === 'sunday' ? assignment.sundayDate : assignment.thursdayDate;
+    await sendPush('roleTurns', [newUser], {
+      title: 'Nuevo Turno Asignado',
+      body: `Te toca armar el set list del ${shortDay(date)} en el Rol de Set Lists.`,
+      url: '/setlist-roles'
+    });
+    // Avisar a quien tenía ese día que ya no le toca
+    if (previousId && previousId !== newUser._id.toString()) {
+      const previousUser = await User.findById(previousId);
+      if (previousUser) {
+        await sendPush('roleTurns', [previousUser], {
+          title: 'Cambio en tu turno',
+          body: `El set list del ${shortDay(date)} ahora le toca a ${newUser.name}.`,
+          url: '/setlist-roles'
+        });
+      }
+    }
+    revalidatePath('/setlist-roles');
+    revalidatePath('/dashboard');
+    return;
+  }
   await assignment.save();
 
   // Notify the new assigned user
-  const newUser = await User.findById(newUserId);
-  if (newUser) {
-    await sendPush('roleTurns', [newUser], {
-      title: 'Nuevo Turno Asignado',
-      body: `Se te ha asignado un turno para el Rol de Set Lists. Por favor, entra a la app para confirmarlo.`,
-      url: '/setlist-roles'
-    });
-  }
+  await sendPush('roleTurns', [newUser], {
+    title: 'Nuevo Turno Asignado',
+    body: `Se te ha asignado un turno para el Rol de Set Lists. Por favor, entra a la app para confirmarlo.`,
+    url: '/setlist-roles'
+  });
 
   revalidatePath('/setlist-roles');
   revalidatePath('/dashboard');

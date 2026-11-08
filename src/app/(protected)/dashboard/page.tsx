@@ -54,7 +54,11 @@ export default async function DashboardPage() {
 
     activeAssignment = await RoleAssignment.findOne({
       thursdayDate: { $gte: today }
-    }).sort({ weekOf: 1 }).populate('assignedUser', 'name roleColor image').lean();
+    }).sort({ weekOf: 1 })
+      .populate('assignedUser', 'name roleColor image')
+      .populate('sundayUser', 'name roleColor')
+      .populate('thursdayUser', 'name roleColor')
+      .lean();
   }
 
   return (
@@ -104,6 +108,12 @@ export default async function DashboardPage() {
                   <div>
                     <p className="font-bold text-zinc-100">{activeAssignment.assignedUser?.name || 'Usuario Eliminado'}</p>
                     <p className="text-xs text-zinc-400 mt-1">Dom {new Date(activeAssignment.sundayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })} - Jue {new Date(activeAssignment.thursdayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</p>
+                    {/* Días que se cambiaron a otra persona */}
+                    {(['sunday', 'thursday'] as const).filter(day => activeAssignment[`${day}User`]?.name).map(day => (
+                      <p key={day} className="text-xs mt-0.5 font-semibold" style={{ color: activeAssignment[`${day}User`].roleColor || '#a1a1aa' }}>
+                        ↪ {day === 'sunday' ? 'Dom' : 'Jue'}: {activeAssignment[`${day}User`].name}
+                      </p>
+                    ))}
                   </div>
                 </div>
               ) : (

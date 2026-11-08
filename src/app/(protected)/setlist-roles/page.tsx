@@ -17,6 +17,18 @@ import RoleCalendar from './RoleCalendar';
 import Setlist from '@/models/Setlist';
 import { visibleSetlistsFilter } from '@/lib/setlists';
 
+type RawUser = { _id: { toString(): string }; name: string; email?: string; roleColor?: string; image?: string };
+type RawAssignment = {
+  _id: { toString(): string };
+  weekOf: Date;
+  sundayDate: Date;
+  thursdayDate: Date;
+  status: string;
+  assignedUser?: RawUser | null;
+  sundayUser?: RawUser | null;
+  thursdayUser?: RawUser | null;
+};
+
 export default async function SetListRolesPage() {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
@@ -44,24 +56,31 @@ export default async function SetListRolesPage() {
   const rawAssignments = await RoleAssignment.find()
     .sort({ weekOf: 1 })
     .populate('assignedUser', 'name email roleColor image')
-    .lean();
-    
-  const assignments = rawAssignments.map(a => ({
-    ...a,
-    _id: a._id.toString(),
-    weekOf: a.weekOf.toISOString(),
-    thursdayDate: a.thursdayDate.toISOString(),
-    sundayDate: a.sundayDate.toISOString(),
-    assignedUser: a.assignedUser ? {
-      ...a.assignedUser,
-      _id: a.assignedUser._id.toString()
-    } : {
-      _id: 'deleted',
-      name: 'Usuario Eliminado',
-      email: '',
-      roleColor: '#ef4444'
-    }
-  }));
+    .populate('sundayUser', 'name email roleColor image')
+    .populate('thursdayUser', 'name email roleColor image')
+    .lean<RawAssignment[]>();
+
+  const serializeUser = (u: RawUser | null | undefined) => u ? { ...u, _id: u._id.toString() } : {
+    _id: 'deleted',
+    name: 'Usuario Eliminado',
+    email: '',
+    roleColor: '#ef4444'
+  };
+  const assignments = rawAssignments.map(a => {
+    const assignedUser = serializeUser(a.assignedUser);
+    return {
+      ...a,
+      _id: a._id.toString(),
+      weekOf: a.weekOf.toISOString(),
+      thursdayDate: a.thursdayDate.toISOString(),
+      sundayDate: a.sundayDate.toISOString(),
+      assignedUser,
+      // Encargado de cada día: el de la semana, salvo que se haya cambiado solo ese día
+      sundayUser: a.sundayUser ? serializeUser(a.sundayUser) : assignedUser,
+      thursdayUser: a.thursdayUser ? serializeUser(a.thursdayUser) : assignedUser,
+    };
+  });
+  const dayLabel = (iso: string, weekday: string) => `${weekday} ${new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}`;
 
   // Las fechas del rol se guardan como días de calendario (medianoche UTC), así que
   // se comparan como 'YYYY-MM-DD' contra el día de hoy en la zona horaria de la banda.
@@ -166,7 +185,7 @@ export default async function SetListRolesPage() {
               <div className="space-y-4">
                 <RoleViewTabs view={view} />
                 {view === 'calendar' ? (
-                  <RoleCalendar assignments={assignments.map(a => ({ _id: a._id, sundayDate: a.sundayDate, thursdayDate: a.thursdayDate, assignedUser: { name: a.assignedUser.name, roleColor: a.assignedUser.roleColor } }))} specialEvents={specialEvents} openableSetlists={openableSetlists} todayKey={todayKey} />
+                  <RoleCalendar assignments={assignments.map(a => ({ _id: a._id, sundayDate: a.sundayDate, thursdayDate: a.thursdayDate, sundayUser: { name: a.sundayUser.name, roleColor: a.sundayUser.roleColor }, thursdayUser: { name: a.thursdayUser.name, roleColor: a.thursdayUser.roleColor } }))} specialEvents={specialEvents} openableSetlists={openableSetlists} todayKey={todayKey} />
                 ) : (
               <div className="space-y-8">
               {activeAssignments.length === 0 ? (
@@ -224,14 +243,23 @@ export default async function SetListRolesPage() {
                       </div>
 
                       <div className="pt-4 border-t border-zinc-800/60 flex flex-col gap-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-zinc-500 font-medium uppercase">Domingo</span>
-                          <span className="text-zinc-300 font-semibold">{new Date(assignment.sundayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-zinc-500 font-medium uppercase">Jueves</span>
-                          <span className="text-zinc-300 font-semibold">{new Date(assignment.thursdayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</span>
-                        </div>
+                        {[
+                          { label: 'Domingo', date: assignment.sundayDate, dayUser: assignment.sundayUser },
+                          { label: 'Jueves', date: assignment.thursdayDate, dayUser: assignment.thursdayUser },
+                        ].map(({ label, date, dayUser }) => (
+                          <div key={label} className="flex items-center justify-between gap-2 text-xs">
+                            <span className="text-zinc-500 font-medium uppercase">{label}</span>
+                            <span className="flex items-center gap-2 min-w-0">
+                              {/* Cambio solo de ese día: se muestra quién lo tiene */}
+                              {dayUser._id !== assignment.assignedUser._id && (
+                                <span className="truncate font-semibold" style={{ color: dayUser.roleColor || '#a1a1aa' }} title="Cambio solo de este día">
+                                  ↪ {dayUser.name}
+                                </span>
+                              )}
+                              <span className="text-zinc-300 font-semibold shrink-0">{new Date(date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</span>
+                            </span>
+                          </div>
+                        ))}
                       </div>
 
                       {isAssignedToMe && assignment.status === 'PENDING' && (
@@ -242,7 +270,8 @@ export default async function SetListRolesPage() {
                         <div className="mt-4 pt-4 border-t border-zinc-800/60">
                            <ChangeAssigneeButton 
                              assignmentId={assignment._id} 
-                             currentAssigneeId={assignment.assignedUser._id}
+                             currentAssignees={{ week: assignment.assignedUser._id, sunday: assignment.sundayUser._id, thursday: assignment.thursdayUser._id }}
+                             dayLabels={{ sunday: dayLabel(assignment.sundayDate, 'Domingo'), thursday: dayLabel(assignment.thursdayDate, 'Jueves') }}
                              approvedUsers={approvedUsers}
                            />
                         </div>
@@ -295,8 +324,8 @@ export default async function SetListRolesPage() {
                           </div>
                         </div>
                         <div className="mt-3 flex gap-4 text-xs text-zinc-600">
-                          <span>Dom {new Date(assignment.sundayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</span>
-                          <span>Jue {new Date(assignment.thursdayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</span>
+                          <span>Dom {new Date(assignment.sundayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}{assignment.sundayUser._id !== assignment.assignedUser._id && ` · ${assignment.sundayUser.name}`}</span>
+                          <span>Jue {new Date(assignment.thursdayDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}{assignment.thursdayUser._id !== assignment.assignedUser._id && ` · ${assignment.thursdayUser.name}`}</span>
                         </div>
                       </div>
                     ))}

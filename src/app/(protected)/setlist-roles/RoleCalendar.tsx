@@ -11,7 +11,9 @@ type CalendarAssignment = {
   _id: string;
   sundayDate: string;
   thursdayDate: string;
-  assignedUser: { name: string; roleColor?: string };
+  // Encargado de cada día (puede ser distinto si un admin lo cambió solo ese día)
+  sundayUser: { name: string; roleColor?: string };
+  thursdayUser: { name: string; roleColor?: string };
 };
 
 export type CalendarSpecialEvent = {
@@ -41,7 +43,7 @@ const keyOf = (date: Date) => date.toISOString().slice(0, 10);
 const firstName = (name: string) => name.trim().split(/\s+/)[0];
 
 // Vista de calendario del Rol: mes con semanas de Domingo a Sábado. Los días del set list
-// de cada turno (Domingo y Jueves) llevan "Mi color" del encargado. Los set lists de eventos
+// de cada turno (Domingo y Jueves) llevan "Mi color" del encargado de ese día. Los set lists de eventos
 // especiales llevan rayado blanco con ⭐ y su nombre; si caen en un día del turno, el borde
 // conserva el color del encargado y el rayado va sobre su color.
 // Al tocar un día de set list se abre su set list si ya está listo (o si lo creó quien lo
@@ -55,11 +57,11 @@ export default function RoleCalendar({ assignments, specialEvents, openableSetli
     return { year: y, month: m - 1 };
   });
 
-  // Día de set list (YYYY-MM-DD) → turno al que pertenece
-  const turnByDay = new Map<string, CalendarAssignment>();
+  // Día de set list (YYYY-MM-DD) → encargado de ese día
+  const turnByDay = new Map<string, { assignedUser: { name: string; roleColor?: string } }>();
   for (const a of assignments) {
-    turnByDay.set(a.sundayDate.slice(0, 10), a);
-    turnByDay.set(a.thursdayDate.slice(0, 10), a);
+    turnByDay.set(a.sundayDate.slice(0, 10), { assignedUser: a.sundayUser });
+    turnByDay.set(a.thursdayDate.slice(0, 10), { assignedUser: a.thursdayUser });
   }
 
   // Día → eventos especiales de ese día

@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   const pending = await RoleAssignment.find({
     sundayDate: { $gte: sundayStart, $lt: new Date(sundayStart.getTime() + DAY_MS) },
     reminderSentAt: { $exists: false },
-  }).lean<{ _id: unknown; assignedUser: unknown; sundayDate: Date; thursdayDate: Date }[]>();
+  }).lean<{ _id: unknown; assignedUser: unknown; sundayUser?: unknown; thursdayUser?: unknown; sundayDate: Date; thursdayDate: Date }[]>();
 
   if (dryRun || !isTime) {
     return NextResponse.json({ success: true, dryRun, isTime, now, wouldNotify: pending.map(a => ({ _id: a._id, assignedUser: a.assignedUser, sundayDate: a.sundayDate })) });
@@ -57,17 +57,31 @@ export async function GET(req: NextRequest) {
       { $set: { reminderSentAt: new Date() } }
     );
     if (!claimed) continue;
-    const user = await User.findById(a.assignedUser);
-    if (!user) continue;
-    const delivery = await sendPush('roleReminder', [user], {
-      title: 'Tu semana del Rol se acerca',
-      body: `Te toca armar los set lists del ${shortDate(a.sundayDate)} y del ${shortDate(a.thursdayDate)}. ¡Prepáralos con tiempo!`,
-      url: '/setlists',
-    });
+
+    // Cada día puede tener otro encargado (cambio por día): a cada quien se le recuerdan sus días
+    const daysByUser = new Map<string, Date[]>();
+    for (const [dayUser, date] of [[a.sundayUser ?? a.assignedUser, a.sundayDate], [a.thursdayUser ?? a.assignedUser, a.thursdayDate]] as const) {
+      const id = String(dayUser);
+      daysByUser.set(id, [...(daysByUser.get(id) || []), date]);
+    }
+
+    const deliveries: { user: string; sent: number; failed: number; optedOut: number; error?: string }[] = [];
+    for (const [userId, dates] of daysByUser) {
+      const user = await User.findById(userId);
+      if (!user) continue;
+      const delivery = await sendPush('roleReminder', [user], {
+        title: dates.length > 1 ? 'Tu semana del Rol se acerca' : 'Tu turno del Rol se acerca',
+        body: dates.length > 1
+          ? `Te toca armar los set lists del ${shortDate(dates[0])} y del ${shortDate(dates[1])}. ¡Prepáralos con tiempo!`
+          : `Te toca armar el set list del ${shortDate(dates[0])}. ¡Prepáralo con tiempo!`,
+        url: '/setlists',
+      });
+      deliveries.push({ user: userId, ...delivery });
+      if (delivery.sent > 0) sent++;
+      else console.warn('Recordatorio del Rol sin entregar', { assignment: a._id, user: userId, ...delivery });
+    }
     // Guardar si llegó a algún dispositivo (sent = 0 con failed = 0 significa que no tenía dispositivos)
-    await RoleAssignment.updateOne({ _id: a._id }, { $set: { reminderDelivery: delivery } });
-    if (delivery.sent > 0) sent++;
-    else console.warn('Recordatorio del Rol sin entregar', { assignment: a._id, user: user._id, ...delivery });
+    await RoleAssignment.updateOne({ _id: a._id }, { $set: { reminderDelivery: deliveries } });
   }
 
   return NextResponse.json({ success: true, sent });

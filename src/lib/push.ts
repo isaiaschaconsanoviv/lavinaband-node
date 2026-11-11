@@ -1,5 +1,7 @@
 import webpush, { type PushSubscription } from 'web-push';
+import { randomBytes } from 'crypto';
 import User from '@/models/User';
+import NotificationLog from '@/models/NotificationLog';
 import { wantsNotification, type NotificationPrefs, type NotificationType } from '@/lib/notificationPrefs';
 
 // Único lugar donde se configura web-push. Las llaves deben ser las mismas que usa
@@ -14,7 +16,7 @@ if (publicKey && privateKey) {
 
 export type PushPayload = { title: string; body: string; url?: string };
 // Los destinatarios deben traer `notificationPrefs` (ojo con los `.select()`)
-type PushRecipient = { pushSubscriptions?: PushSubscription[] | null; notificationPrefs?: NotificationPrefs | null };
+type PushRecipient = { _id?: unknown; pushSubscriptions?: PushSubscription[] | null; notificationPrefs?: NotificationPrefs | null };
 
 // Envía la notificación a todos los dispositivos de los usuarios en paralelo,
 // omitiendo a quienes desactivaron ese tipo de notificación en su Perfil.
@@ -33,27 +35,58 @@ export async function sendPush(type: NotificationType, recipients: PushRecipient
   }
 
   // Un mismo dispositivo pudo quedar registrado en varias cuentas: enviar una sola vez
-  const subscriptions = new Map<string, PushSubscription>();
+  const devices = new Map<string, { sub: PushSubscription; users: unknown[] }>();
   for (const recipient of wanted) {
     for (const sub of recipient.pushSubscriptions ?? []) {
-      if (sub?.endpoint) subscriptions.set(sub.endpoint, sub);
+      if (!sub?.endpoint) continue;
+      const device = devices.get(sub.endpoint) ?? { sub, users: [] };
+      if (recipient._id) device.users.push(recipient._id);
+      devices.set(sub.endpoint, device);
     }
   }
-  if (subscriptions.size === 0) return { sent: 0, failed: 0, optedOut };
+  if (devices.size === 0) return { sent: 0, failed: 0, optedOut };
 
-  const body = JSON.stringify(payload);
-  const subs = [...subscriptions.values()];
-  const results = await Promise.allSettled(subs.map(sub => webpush.sendNotification(sub, body)));
+  const list = [...devices.values()];
+  const subs = list.map(d => d.sub);
+
+  // Registro de seguimiento por dispositivo. Si falla, la notificación se manda igual, sin seguimiento.
+  let logs: { _id: unknown; token: string }[] = [];
+  try {
+    logs = await NotificationLog.insertMany(list.map(d => ({
+      type, title: payload.title, body: payload.body, url: payload.url,
+      users: d.users, endpoint: d.sub.endpoint, token: randomBytes(16).toString('hex'),
+    })));
+  } catch (err) {
+    console.error('Error al registrar el seguimiento de notificaciones:', err);
+  }
+
+  // `urgency: 'high'`: que Android lo entregue al momento aunque el teléfono esté en reposo
+  // (Doze); con prioridad normal puede retrasarlo o juntarlo hasta que el teléfono despierte.
+  const results = await Promise.allSettled(subs.map((sub, i) => webpush.sendNotification(sub, JSON.stringify(
+    logs[i] ? { ...payload, trackId: String(logs[i]._id), trackToken: logs[i].token } : payload
+  ), { urgency: 'high' })));
 
   const deadEndpoints: string[] = [];
   const errors: string[] = [];
+  const failedLogs: { id: unknown; error: string }[] = [];
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') return;
     const statusCode = (result.reason as { statusCode?: number })?.statusCode;
     errors.push(String(statusCode ?? (result.reason as Error)?.message ?? 'error'));
     if (statusCode === 404 || statusCode === 410) deadEndpoints.push(subs[i].endpoint);
     else console.error('Push error:', result.reason);
+    if (logs[i]) failedLogs.push({ id: logs[i]._id, error: errors[errors.length - 1] });
   });
+
+  if (failedLogs.length > 0) {
+    try {
+      await NotificationLog.bulkWrite(failedLogs.map(f => ({
+        updateOne: { filter: { _id: f.id }, update: { $set: { status: 'failed', error: f.error } } },
+      })));
+    } catch (err) {
+      console.error('Error al actualizar el seguimiento de notificaciones:', err);
+    }
+  }
 
   if (deadEndpoints.length > 0) {
     try {

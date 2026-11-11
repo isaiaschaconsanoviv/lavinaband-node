@@ -8,6 +8,18 @@ self.addEventListener('activate', function (event) {
   event.waitUntil(self.clients.claim());
 });
 
+// Avisa al servidor qué pasó con la notificación (llegó, la abrieron, la descartaron).
+// Ver api/notifications/track. Si falla, no afecta a la notificación.
+function track(data, event) {
+  if (!data || !data.trackId) return Promise.resolve();
+  return fetch('/api/notifications/track', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: data.trackId, token: data.trackToken, event: event }),
+    keepalive: true,
+  }).catch(function () {});
+}
+
 self.addEventListener('push', function (event) {
   if (event.data) {
     const data = event.data.json();
@@ -19,10 +31,15 @@ self.addEventListener('push', function (event) {
       data: {
         dateOfArrival: Date.now(),
         primaryKey: '2',
-        url: data.url || '/'
+        url: data.url || '/',
+        trackId: data.trackId,
+        trackToken: data.trackToken
       },
     };
-    event.waitUntil(self.registration.showNotification(data.title, options));
+    event.waitUntil(Promise.all([
+      self.registration.showNotification(data.title, options),
+      track(data, 'received'),
+    ]));
   }
 });
 
@@ -30,9 +47,10 @@ self.addEventListener('push', function (event) {
 // si no, abrirla ahí.
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
+  const opened = track(event.notification.data, 'opened');
   const url = new URL(event.notification.data?.url || '/', self.location.origin).href;
 
-  event.waitUntil(
+  event.waitUntil(Promise.all([opened,
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async function (clientList) {
       const client = clientList.find(function (c) { return c.focused; }) || clientList[0];
       if (!client) return clients.openWindow(url);
@@ -45,5 +63,9 @@ self.addEventListener('notificationclick', function (event) {
         return clients.openWindow(url);
       }
     })
-  );
+  ]));
+});
+
+self.addEventListener('notificationclose', function (event) {
+  event.waitUntil(track(event.notification.data, 'dismissed'));
 });
